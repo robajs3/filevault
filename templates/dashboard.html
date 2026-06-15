@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Pliki — FileVault{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Moje pliki</h1>
+    <p class="text-muted">{{ files|length }} plik(ów) · {{ user.used_storage_mb }} / {{ user.storage_limit_mb }} MB</p>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('uploadModal').showModal()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    Wgraj pliki
+  </button>
+</div>
+
+<div class="storage-bar-wrap">
+  <div class="storage-bar">
+    <div class="storage-fill" style="width: {{ [user.used_storage_mb / user.storage_limit_mb * 100, 100]|min }}%"></div>
+  </div>
+</div>
+
+{% if files %}
+<div class="files-grid">
+  {% for file in files %}
+  <div class="file-card">
+    <div class="file-icon">{{ file.original_name.rsplit('.', 1)[-1].upper() if '.' in file.original_name else '?' }}</div>
+    <div class="file-info">
+      <div class="file-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+      <div class="file-meta">{{ file.size_human }} · {{ file.created_at.strftime('%d.%m.%Y') }}</div>
+      {% if file.is_share_active %}
+      <div class="share-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Udostępniony
+      </div>
+      {% endif %}
+    </div>
+    <div class="file-actions">
+      <a href="{{ url_for('download_own', file_id=file.id) }}" class="btn btn-sm btn-ghost" title="Pobierz">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </a>
+      <button class="btn btn-sm btn-accent" onclick="openShare({{ file.id }}, '{{ file.original_name }}')" title="Udostępnij">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
+      {% if file.is_share_active %}
+      <button class="btn btn-sm btn-ghost" onclick="copyLink('{{ file.share_url }}')" title="Kopiuj link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+      <form method="POST" action="{{ url_for('unshare_file', file_id=file.id) }}" style="display:inline">
+        <button type="submit" class="btn btn-sm btn-ghost" title="Wyłącz udostępnianie">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="1" y1="1" x2="23" y2="23"/>
+            <path d="M10.5 9H6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4"/>
+            <path d="M18 14.5V12a2 2 0 0 0-2-2h-.5"/>
+          </svg>
+        </button>
+      </form>
+      {% endif %}
+      <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}"
+            onsubmit="return confirm('Usunąć plik {{ file.original_name }}?')" style="display:inline">
+        <button type="submit" class="btn btn-sm btn-danger" title="Usuń">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>
+  <h3>Brak plików</h3>
+  <p>Wgraj swoje pierwsze pliki klikając przycisk powyżej.</p>
+</div>
+{% endif %}
+
+<!-- Upload Modal -->
+<dialog id="uploadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Wgraj pliki</h2>
+      <button class="modal-close" onclick="document.getElementById('uploadModal').close()">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+      <div class="drop-zone" id="dropZone">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>Przeciągnij pliki tutaj lub kliknij</p>
+        <input type="file" name="file" id="fileInput" multiple hidden>
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+          Wybierz pliki
+        </button>
+        <div id="fileList" class="file-list-preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('uploadModal').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Wgraj</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Share Modal -->
+<dialog id="shareModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Udostępnij plik</h2>
+      <button class="modal-close" onclick="document.getElementById('shareModal').close()">×</button>
+    </div>
+    <form method="POST" id="shareForm">
+      <p class="share-filename" id="shareFilename"></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expires_hours">Wygasa po (godziny)</label>
+          <select name="expires_hours" id="expires_hours">
+            <option value="1">1 godzina</option>
+            <option value="6">6 godzin</option>
+            <option value="24" selected>24 godziny</option>
+            <option value="72">3 dni</option>
+            <option value="168">7 dni</option>
+            <option value="720">30 dni</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="download_limit">Limit pobrań (opcjonalne)</label>
+          <input type="number" name="download_limit" id="download_limit" placeholder="Brak limitu" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="share_password">Hasło do pobrania (opcjonalne)</label>
+        <input type="password" name="share_password" id="share_password" placeholder="Zostaw puste = brak hasła">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('shareModal').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Generuj link</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+{% endblock %}

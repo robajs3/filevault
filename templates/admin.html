@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Admin — FileVault{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Panel administratora</h1>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ users|length }}</div>
+    <div class="stat-label">Użytkownicy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ total_files }}</div>
+    <div class="stat-label">Pliki</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ "%.1f"|format(total_size / (1024*1024)) }} MB</div>
+    <div class="stat-label">Łączny rozmiar</div>
+  </div>
+</div>
+
+<section class="section">
+  <h2>Użytkownicy</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Użytkownik</th><th>Email</th><th>Status</th>
+          <th>Pliki</th><th>Miejsce</th><th>Limit MB</th><th>Dołączył</th><th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.username }} {% if u.is_admin %}<span class="badge badge-admin">admin</span>{% endif %}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            <span class="badge {{ 'badge-ok' if u.is_active else 'badge-off' }}">
+              {{ 'aktywny' if u.is_active else 'zablokowany' }}
+            </span>
+          </td>
+          <td>{{ u.files.count() }}</td>
+          <td>{{ u.used_storage_mb }} MB</td>
+          <td>
+            <form method="POST" action="{{ url_for('admin_set_storage', user_id=u.id) }}" style="display:flex;gap:4px">
+              <input type="number" name="limit_mb" value="{{ u.storage_limit_mb }}" class="input-sm" style="width:80px">
+              <button type="submit" class="btn btn-sm btn-ghost">OK</button>
+            </form>
+          </td>
+          <td>{{ u.created_at.strftime('%d.%m.%Y') }}</td>
+          <td>
+            {% if not u.is_admin %}
+            <form method="POST" action="{{ url_for('admin_toggle_user', user_id=u.id) }}" style="display:inline">
+              <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-ghost' }}">
+                {{ 'Blokuj' if u.is_active else 'Odblokuj' }}
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <h2>Ostatnie logi (100)</h2>
+  <div class="table-wrap">
+    <table class="table table-sm">
+      <thead>
+        <tr><th>Czas</th><th>Użytkownik</th><th>Akcja</th><th>Szczegóły</th><th>IP</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at.strftime('%d.%m %H:%M:%S') }}</td>
+          <td>{{ log.user_id or '—' }}</td>
+          <td><code>{{ log.action }}</code></td>
+          <td>{{ log.detail or '—' }}</td>
+          <td>{{ log.ip }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+# ── FileVault configuration ──────────────────────────────────────
+# Copy to .env and fill in your values
+
+# Flask
+SECRET_KEY=change_me_to_a_long_random_string_at_least_32_chars
+
+# PostgreSQL (adjust host/user/pass/db)
+DATABASE_URL=postgresql://filetransfer:strongpassword@localhost/filetransfer
+
+# Storage
+UPLOAD_FOLDER=/var/filevault/uploads
+MAX_UPLOAD_MB=500
+
+# Registration (set to "false" to require admin to create accounts)
+ALLOW_REGISTRATION=true
+
+# Allowed file extensions (comma-separated, leave empty = all allowed)
+# ALLOWED_EXTENSIONS=pdf,docx,xlsx,jpg,png,zip,mp4
+
+# Optional: Redis for persistent rate limiting (omit = in-memory)
+# REDIS_URL=redis://localhost:6379/0
