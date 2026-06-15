@@ -53,6 +53,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
     storage_limit_mb = db.Column(db.Integer, default=2048)
     files = db.relationship("FileRecord", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
+    folders = db.relationship("Folder", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -66,10 +67,43 @@ class User(db.Model):
         return round(total / (1024 * 1024), 2)
 
 
+class Folder(db.Model):
+    __tablename__ = "folders"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey("folders.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Self-referential relationship for nested folders
+    children = db.relationship("Folder", backref=db.backref("parent", remote_side=[id]),
+                               lazy="dynamic", cascade="all, delete-orphan")
+    files = db.relationship("FileRecord", backref="folder", lazy="dynamic")
+
+    @property
+    def full_path(self):
+        """Returns the full path string like 'root/sub/subsub'."""
+        parts = [self.name]
+        node = self
+        while node.parent_id:
+            node = db.session.get(Folder, node.parent_id)
+            parts.insert(0, node.name)
+        return " / ".join(parts)
+
+    @property
+    def file_count(self):
+        return self.files.count()
+
+    @property
+    def total_size_bytes(self):
+        return db.session.query(db.func.sum(FileRecord.size_bytes)).filter_by(folder_id=self.id).scalar() or 0
+
+
 class FileRecord(db.Model):
     __tablename__ = "files"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    folder_id = db.Column(db.Integer, db.ForeignKey("folders.id"), nullable=True)  # NEW
     original_name = db.Column(db.String(255), nullable=False)
     stored_name = db.Column(db.String(255), unique=True, nullable=False)
     size_bytes = db.Column(db.BigInteger, nullable=False)
@@ -165,6 +199,24 @@ def allowed_file(filename):
     return ext in ALLOWED_EXTENSIONS
 
 
+def get_user_folder(folder_id):
+    """Get a folder that belongs to the current user, or 404."""
+    folder = db.session.get(Folder, folder_id)
+    if not folder or folder.user_id != g.user.id:
+        abort(404)
+    return folder
+
+
+def collect_descendant_ids(folder_id):
+    """Recursively collect all descendant folder IDs (for delete protection)."""
+    ids = []
+    children = Folder.query.filter_by(parent_id=folder_id).all()
+    for child in children:
+        ids.append(child.id)
+        ids.extend(collect_descendant_ids(child.id))
+    return ids
+
+
 # ─── Auth routes ──────────────────────────────────────────────────────────────
 
 @app.route("/login", methods=["GET", "POST"])
@@ -235,8 +287,12 @@ def register():
 @app.route("/")
 @login_required
 def dashboard():
-    files = FileRecord.query.filter_by(user_id=g.user.id).order_by(FileRecord.created_at.desc()).all()
-    return render_template("dashboard.html", files=files, user=g.user)
+    # Show root-level folders and files (no folder assigned)
+    folders = Folder.query.filter_by(user_id=g.user.id, parent_id=None).order_by(Folder.name).all()
+    files = FileRecord.query.filter_by(user_id=g.user.id, folder_id=None).order_by(FileRecord.created_at.desc()).all()
+    all_folders = Folder.query.filter_by(user_id=g.user.id).order_by(Folder.name).all()
+    return render_template("dashboard.html", files=files, folders=folders,
+                           all_folders=all_folders, current_folder=None, user=g.user)
 
 
 @app.route("/upload", methods=["POST"])
@@ -246,6 +302,13 @@ def upload():
     if "file" not in request.files:
         flash("Brak pliku.", "danger")
         return redirect(url_for("dashboard"))
+
+    # Optional: upload into a specific folder
+    folder_id = request.form.get("folder_id", "").strip()
+    target_folder = None
+    if folder_id and folder_id.isdigit():
+        target_folder = Folder.query.filter_by(id=int(folder_id), user_id=g.user.id).first()
+
     files = request.files.getlist("file")
     uploaded = 0
     for f in files:
@@ -266,6 +329,7 @@ def upload():
             break
         record = FileRecord(
             user_id=g.user.id,
+            folder_id=target_folder.id if target_folder else None,
             original_name=original_name,
             stored_name=stored_name,
             size_bytes=size,
@@ -277,6 +341,9 @@ def upload():
         uploaded += 1
     if uploaded:
         flash(f"Przesłano {uploaded} plik(ów).", "success")
+
+    if target_folder:
+        return redirect(url_for("folder_view", folder_id=target_folder.id))
     return redirect(url_for("dashboard"))
 
 
@@ -295,6 +362,7 @@ def download_own(file_id):
 @login_required
 def delete_file(file_id):
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    folder_id = record.folder_id
     path = os.path.join(app.config["UPLOAD_FOLDER"], record.stored_name)
     if os.path.exists(path):
         os.remove(path)
@@ -302,6 +370,38 @@ def delete_file(file_id):
     db.session.delete(record)
     db.session.commit()
     flash("Plik usunięty.", "success")
+    if folder_id:
+        return redirect(url_for("folder_view", folder_id=folder_id))
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/file/<int:file_id>/move", methods=["POST"])
+@login_required
+def move_file(file_id):
+    """Move a file to a different folder (or root if folder_id is empty)."""
+    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    old_folder_id = record.folder_id
+    target_id = request.form.get("folder_id", "").strip()
+
+    if target_id and target_id.isdigit():
+        target_folder = Folder.query.filter_by(id=int(target_id), user_id=g.user.id).first()
+        if not target_folder:
+            flash("Folder nie istnieje.", "danger")
+            return redirect(url_for("dashboard"))
+        record.folder_id = target_folder.id
+        flash(f"Plik przeniesiony do '{target_folder.name}'.", "success")
+        log_action("move_file", detail=f"{record.original_name} -> folder {target_folder.id}")
+    else:
+        record.folder_id = None
+        flash("Plik przeniesiony do katalogu głównego.", "success")
+        log_action("move_file", detail=f"{record.original_name} -> root")
+
+    db.session.commit()
+
+    # Redirect back to where the user came from
+    redirect_to = request.form.get("redirect_to", "")
+    if redirect_to and redirect_to.isdigit():
+        return redirect(url_for("folder_view", folder_id=int(redirect_to)))
     return redirect(url_for("dashboard"))
 
 
@@ -321,6 +421,9 @@ def share_file(file_id):
     db.session.commit()
     log_action("share_created", detail=record.original_name)
     flash(f"Link do udostępniania: {record.share_url}", "success")
+
+    if record.folder_id:
+        return redirect(url_for("folder_view", folder_id=record.folder_id))
     return redirect(url_for("dashboard"))
 
 
@@ -328,13 +431,174 @@ def share_file(file_id):
 @login_required
 def unshare_file(file_id):
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    folder_id = record.folder_id
     record.share_token = None
     record.share_expires_at = None
     record.share_password_hash = None
     record.download_limit = None
     db.session.commit()
     flash("Udostępnianie wyłączone.", "info")
+    if folder_id:
+        return redirect(url_for("folder_view", folder_id=folder_id))
     return redirect(url_for("dashboard"))
+
+
+# ─── Folder routes ─────────────────────────────────────────────────────────────
+
+@app.route("/folder/create", methods=["POST"])
+@login_required
+def create_folder():
+    name = request.form.get("name", "").strip()
+    parent_id = request.form.get("parent_id", "").strip()
+
+    if not name:
+        flash("Podaj nazwę folderu.", "danger")
+        return redirect(url_for("dashboard"))
+    if len(name) > 255:
+        flash("Nazwa folderu jest za długa.", "danger")
+        return redirect(url_for("dashboard"))
+
+    parent_folder = None
+    if parent_id and parent_id.isdigit():
+        parent_folder = Folder.query.filter_by(id=int(parent_id), user_id=g.user.id).first()
+        if not parent_folder:
+            flash("Folder nadrzędny nie istnieje.", "danger")
+            return redirect(url_for("dashboard"))
+
+    # Prevent duplicate names within the same parent
+    existing = Folder.query.filter_by(
+        user_id=g.user.id,
+        name=name,
+        parent_id=parent_folder.id if parent_folder else None
+    ).first()
+    if existing:
+        flash("Folder o tej nazwie już istnieje w tym miejscu.", "warning")
+    else:
+        folder = Folder(
+            user_id=g.user.id,
+            name=name,
+            parent_id=parent_folder.id if parent_folder else None,
+        )
+        db.session.add(folder)
+        db.session.commit()
+        log_action("folder_created", detail=name)
+        flash(f"Folder '{name}' zostal utworzony.", "success")
+
+    if parent_folder:
+        return redirect(url_for("folder_view", folder_id=parent_folder.id))
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/folder/<int:folder_id>")
+@login_required
+def folder_view(folder_id):
+    folder = get_user_folder(folder_id)
+    subfolders = Folder.query.filter_by(user_id=g.user.id, parent_id=folder_id).order_by(Folder.name).all()
+    files = FileRecord.query.filter_by(user_id=g.user.id, folder_id=folder_id).order_by(FileRecord.created_at.desc()).all()
+    all_folders = Folder.query.filter_by(user_id=g.user.id).order_by(Folder.name).all()
+
+    # Build breadcrumb trail
+    breadcrumbs = []
+    node = folder
+    while node:
+        breadcrumbs.insert(0, node)
+        node = db.session.get(Folder, node.parent_id) if node.parent_id else None
+
+    return render_template(
+        "dashboard.html",
+        files=files,
+        folders=subfolders,
+        all_folders=all_folders,
+        current_folder=folder,
+        breadcrumbs=breadcrumbs,
+        user=g.user,
+    )
+
+
+@app.route("/folder/<int:folder_id>/rename", methods=["POST"])
+@login_required
+def rename_folder(folder_id):
+    folder = get_user_folder(folder_id)
+    new_name = request.form.get("name", "").strip()
+    if not new_name:
+        flash("Podaj nową nazwę folderu.", "danger")
+        return redirect(url_for("folder_view", folder_id=folder_id))
+
+    # Check for duplicate in the same parent
+    existing = Folder.query.filter(
+        Folder.user_id == g.user.id,
+        Folder.name == new_name,
+        Folder.parent_id == folder.parent_id,
+        Folder.id != folder.id,
+    ).first()
+    if existing:
+        flash("Folder o tej nazwie już istnieje w tym miejscu.", "warning")
+    else:
+        log_action("folder_renamed", detail=f"{folder.name} -> {new_name}")
+        folder.name = new_name
+        db.session.commit()
+        flash("Folder został przemianowany.", "success")
+
+    parent_id = folder.parent_id
+    if parent_id:
+        return redirect(url_for("folder_view", folder_id=parent_id))
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/folder/<int:folder_id>/delete", methods=["POST"])
+@login_required
+def delete_folder(folder_id):
+    folder = get_user_folder(folder_id)
+    parent_id = folder.parent_id
+
+    # Collect all descendant folder IDs to delete their files too
+    all_folder_ids = [folder_id] + collect_descendant_ids(folder_id)
+
+    # Delete physical files for all files in these folders
+    for fid in all_folder_ids:
+        records = FileRecord.query.filter_by(folder_id=fid).all()
+        for record in records:
+            path = os.path.join(app.config["UPLOAD_FOLDER"], record.stored_name)
+            if os.path.exists(path):
+                os.remove(path)
+
+    log_action("folder_deleted", detail=folder.name)
+    db.session.delete(folder)  # cascade will delete subfolders; files need manual cleanup above
+    db.session.commit()
+    flash(f"Folder '{folder.name}' i jego zawartosc zostaly usuniete.", "success")
+
+    if parent_id:
+        return redirect(url_for("folder_view", folder_id=parent_id))
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/folder/<int:folder_id>/move", methods=["POST"])
+@login_required
+def move_folder(folder_id):
+    """Move a folder to a different parent (or to root)."""
+    folder = get_user_folder(folder_id)
+    target_id = request.form.get("parent_id", "").strip()
+
+    if target_id and target_id.isdigit():
+        new_parent_id = int(target_id)
+        # Prevent moving a folder into itself or its own descendants
+        if new_parent_id == folder_id or new_parent_id in collect_descendant_ids(folder_id):
+            flash("Nie można przenieść folderu do samego siebie ani jego podfolderów.", "danger")
+            return redirect(url_for("folder_view", folder_id=folder_id))
+        new_parent = Folder.query.filter_by(id=new_parent_id, user_id=g.user.id).first()
+        if not new_parent:
+            flash("Folder docelowy nie istnieje.", "danger")
+            return redirect(url_for("folder_view", folder_id=folder_id))
+        folder.parent_id = new_parent_id
+        flash(f"Folder przeniesiony do '{new_parent.name}'.", "success")
+        log_action("folder_moved", detail=f"{folder.name} -> {new_parent.name}")
+    else:
+        folder.parent_id = None
+        flash("Folder przeniesiony do katalogu głównego.", "success")
+        log_action("folder_moved", detail=f"{folder.name} -> root")
+
+    db.session.commit()
+    return redirect(url_for("folder_view", folder_id=folder_id))
 
 
 # ─── Public share download ─────────────────────────────────────────────────────
@@ -414,10 +678,25 @@ def api_files():
         "name": f.original_name,
         "size": f.size_bytes,
         "size_human": f.size_human,
+        "folder_id": f.folder_id,
         "share_url": f.share_url,
         "share_active": f.is_share_active,
         "created_at": f.created_at.isoformat(),
     } for f in files])
+
+
+@app.route("/api/folders")
+@login_required
+def api_folders():
+    folders = Folder.query.filter_by(user_id=g.user.id).order_by(Folder.name).all()
+    return jsonify([{
+        "id": f.id,
+        "name": f.name,
+        "parent_id": f.parent_id,
+        "full_path": f.full_path,
+        "file_count": f.file_count,
+        "created_at": f.created_at.isoformat(),
+    } for f in folders])
 
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
