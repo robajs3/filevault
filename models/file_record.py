@@ -42,8 +42,13 @@ class FileRecord(db.Model):
     def is_share_active(self) -> bool:
         if not self.share_token:
             return False
-        if self.share_expires_at and self.share_expires_at < datetime.now(timezone.utc):
-            return False
+        if self.share_expires_at:
+            expires = self.share_expires_at
+            # Baza może zwrócić datetime bez timezone (naive) — normalizujemy do UTC
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires < datetime.now(timezone.utc):
+                return False
         if self.download_limit and self.download_count >= self.download_limit:
             return False
         return True
