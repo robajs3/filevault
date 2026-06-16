@@ -7,7 +7,7 @@
     <h1>Panel administracyjny</h1>
     <p class="text-muted">Zarządzanie użytkownikami i monitorowanie systemu</p>
   </div>
-  <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">
+  <a href="{{ url_for('files.dashboard') }}" class="btn btn-ghost">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="15 18 9 12 15 6"/>
     </svg>
@@ -86,7 +86,7 @@
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
               <!-- Zmień limit -->
-              <form method="POST" action="{{ url_for('admin_set_storage', user_id=u.id) }}" class="inline-form">
+              <form method="POST" action="{{ url_for('admin.set_storage', user_id=u.id) }}" class="inline-form">
                 <input type="number" name="limit_mb" value="{{ u.storage_limit_mb }}"
                        min="1" class="input-sm" style="width:80px" title="Limit MB">
                 <button type="submit" class="btn btn-sm btn-ghost" title="Ustaw limit">
@@ -96,7 +96,7 @@
                 </button>
               </form>
               <!-- Blokuj/Odblokuj -->
-              <form method="POST" action="{{ url_for('admin_toggle_user', user_id=u.id) }}" style="display:inline">
+              <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}" style="display:inline">
                 <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-accent' }}"
                         title="{{ 'Zablokuj' if u.is_active else 'Odblokuj' }}">
                   {% if u.is_active %}

@@ -6,11 +6,11 @@
   <div>
     {% if current_folder %}
     <nav class="breadcrumbs">
-      <a href="{{ url_for('dashboard') }}">Moje pliki</a>
+      <a href="{{ url_for('files.dashboard') }}">Moje pliki</a>
       {% for crumb in breadcrumbs %}
         <span class="breadcrumb-sep">›</span>
         {% if not loop.last %}
-          <a href="{{ url_for('folder_view', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+          <a href="{{ url_for('folders.folder_view', folder_id=crumb.id) }}">{{ crumb.name }}</a>
         {% else %}
           <span class="breadcrumb-current">{{ crumb.name }}</span>
         {% endif %}
@@ -70,7 +70,7 @@
        data-kind="folder"
        data-id="{{ folder.id }}"
        data-label="{{ folder.name|replace("'","\\'")|replace('"','\\"') }}">
-    <a href="{{ url_for('folder_view', folder_id=folder.id) }}" class="folder-link">
+    <a href="{{ url_for('folders.folder_view', folder_id=folder.id) }}" class="folder-link">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none" class="folder-icon-svg">
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
       </svg>
@@ -94,7 +94,7 @@
           <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
         </svg>
       </button>
-      <form method="POST" action="{{ url_for('delete_folder', folder_id=folder.id) }}"
+      <form method="POST" action="{{ url_for('folders.delete_folder', folder_id=folder.id) }}"
             onsubmit="return confirm('Usunac folder {{ folder.name }} i cala zawartosc?')" style="display:inline">
         <button type="submit" class="btn btn-sm btn-danger" title="Usuń folder">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -126,7 +126,7 @@
        title="Podgląd">
     {% endif %}
     {% if file.has_thumbnail %}
-<img class="file-thumb" src="{{ url_for('thumbnail', file_id=file.id) }}" alt="" loading="lazy">
+<img class="file-thumb" src="{{ url_for('files.thumbnail', file_id=file.id) }}" alt="" loading="lazy">
 {% else %}
 <div class="file-icon">{{ file.original_name.rsplit('.', 1)[-1].upper() if '.' in file.original_name else '?' }}</div>
 {% endif %}
@@ -168,7 +168,7 @@
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
   </svg>
 </button>
-      <a href="{{ url_for('download_own', file_id=file.id) }}" class="btn btn-sm btn-ghost" title="Pobierz">
+      <a href="{{ url_for('files.download_own', file_id=file.id) }}" class="btn btn-sm btn-ghost" title="Pobierz">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -195,7 +195,7 @@
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
       </button>
-      <form method="POST" action="{{ url_for('unshare_file', file_id=file.id) }}" style="display:inline">
+      <form method="POST" action="{{ url_for('files.unshare_file', file_id=file.id) }}" style="display:inline">
         <button type="submit" class="btn btn-sm btn-ghost" title="Wyłącz udostępnianie">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="1" y1="1" x2="23" y2="23"/>
@@ -205,7 +205,7 @@
         </button>
       </form>
       {% endif %}
-      <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}"
+      <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}"
             onsubmit="return confirm('Usunac plik {{ file.original_name }}?')" style="display:inline">
         <button type="submit" class="btn btn-sm btn-danger" title="Usuń">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -248,7 +248,7 @@
     <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
       {% if current_folder %}<input type="hidden" name="folder_id" value="{{ current_folder.id }}">{% endif %}
       <div class="drop-zone" id="dropZone">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -284,7 +284,7 @@
     <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    <form method="POST" action="{{ url_for('create_folder') }}">
+    <form method="POST" action="{{ url_for('folders.create_folder') }}">
       {% if current_folder %}<input type="hidden" name="parent_id" value="{{ current_folder.id }}">{% endif %}
       <div class="form-group">
         <label>Nazwa folderu</label>
