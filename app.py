@@ -35,6 +35,15 @@ ALLOWED_EXTENSIONS = set(os.environ.get("ALLOWED_EXTENSIONS", "").split(",")) if
 
 THUMBNAIL_SIZE = (320, 320)
 THUMBNAILABLE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp"}
+PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}
+PREVIEWABLE_VIDEO_EXTENSIONS = {"mp4", "webm", "ogg", "mov"}
+PREVIEWABLE_PDF_EXTENSIONS = {"pdf"}
+PREVIEW_MIME_MAP = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif",
+    "webp": "image/webp", "bmp": "image/bmp", "svg": "image/svg+xml",
+    "mp4": "video/mp4", "webm": "video/webm", "ogg": "video/ogg", "mov": "video/quicktime",
+    "pdf": "application/pdf",
+}
 
 db = SQLAlchemy(app)
 
@@ -164,6 +173,26 @@ class FileRecord(db.Model):
                 return f"{b:.1f} {unit}"
             b /= 1024
         return f"{b:.1f} TB"
+
+    @property
+    def extension(self):
+        return self.original_name.rsplit(".", 1)[-1].lower() if "." in self.original_name else ""
+
+    @property
+    def preview_type(self):
+        """Returns 'image', 'video', 'pdf', or None if no preview is available."""
+        ext = self.extension
+        if ext in PREVIEWABLE_IMAGE_EXTENSIONS:
+            return "image"
+        if ext in PREVIEWABLE_VIDEO_EXTENSIONS:
+            return "video"
+        if ext in PREVIEWABLE_PDF_EXTENSIONS:
+            return "pdf"
+        return None
+
+    @property
+    def is_previewable(self):
+        return self.preview_type is not None
 
 
 class AuditLog(db.Model):
@@ -413,6 +442,21 @@ def thumbnail(file_id):
     return send_file(path, mimetype="image/webp")
 
 
+@app.route("/file/<int:file_id>/preview")
+@login_required
+def preview_file(file_id):
+    """Inline preview (image/video/pdf) for the file's owner — not a download."""
+    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    if not record.is_previewable:
+        abort(404)
+    path = os.path.join(app.config["UPLOAD_FOLDER"], record.stored_name)
+    if not os.path.exists(path):
+        abort(404)
+    mime = PREVIEW_MIME_MAP.get(record.extension, record.mime_type or "application/octet-stream")
+    log_action("preview", detail=record.original_name)
+    return send_file(path, mimetype=mime, as_attachment=False, conditional=True)
+
+
 @app.route("/file/<int:file_id>/delete", methods=["POST"])
 @login_required
 def delete_file(file_id):
@@ -463,6 +507,31 @@ def move_file(file_id):
         return redirect(url_for("folder_view", folder_id=int(redirect_to)))
     return redirect(url_for("dashboard"))
 
+@app.route("/file/<int:file_id>/rename", methods=["POST"])
+@login_required
+def rename_file(file_id):
+    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    new_name = request.form.get("name", "").strip()
+
+    if not new_name:
+        flash("Podaj nową nazwę pliku.", "danger")
+    elif len(new_name) > 255:
+        flash("Nazwa pliku jest za długa.", "danger")
+    else:
+        new_name = secure_filename(new_name)
+        old_ext = record.original_name.rsplit(".", 1)[-1].lower() if "." in record.original_name else ""
+        new_ext = new_name.rsplit(".", 1)[-1].lower() if "." in new_name else ""
+        # Preserve original extension if user dropped it
+        if old_ext and new_ext != old_ext:
+            new_name = f"{new_name}.{old_ext}"
+        log_action("rename_file", detail=f"{record.original_name} -> {new_name}")
+        record.original_name = new_name
+        db.session.commit()
+        flash("Nazwa pliku została zmieniona.", "success")
+
+    if record.folder_id:
+        return redirect(url_for("folder_view", folder_id=record.folder_id))
+    return redirect(url_for("dashboard"))
 
 @app.route("/file/<int:file_id>/share", methods=["POST"])
 @login_required
