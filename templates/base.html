@@ -30,7 +30,6 @@
     </div>
   </nav>
   {% endif %}
-
   <main class="main-content">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -46,14 +45,13 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-
   <footer class="site-footer">
     <div class="footer-inner">
       <span class="text-muted" style="font-size:.8rem">© 2026 FileVault</span>
       <a href="{{ url_for('privacy') }}" class="footer-link">Polityka prywatności</a>
     </div>
   </footer>
-
+  {% block extra_js %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

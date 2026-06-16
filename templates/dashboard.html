@@ -132,9 +132,15 @@
 {% endif %}
     {% if file.is_previewable %}
     <div class="preview-overlay">
+      {% if file.preview_type == 'audio' %}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      {% else %}
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
       </svg>
+      {% endif %}
     </div>
     </a>
     {% endif %}
@@ -559,7 +565,7 @@
 
 /* ── Modal podglądu ── */
 .preview-modal {
-  width: 90vw;
+  width: 100vw;
   max-width: 960px;
 }
 .preview-header-actions {
@@ -606,6 +612,36 @@
   color: var(--text-muted);
   text-align: center;
 }
+
+/* ── Podgląd audio ── */
+.preview-audio-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 2.5rem 1.5rem;
+  width: 100%;
+}
+.preview-audio-wrap .audio-icon {
+  color: var(--accent);
+  opacity: .7;
+}
+.preview-audio-wrap audio {
+  width: 100%;
+  max-width: 480px;
+}
+.preview-audio-filename {
+  font-size: .85rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 1rem;
+}
+
 @media (max-width: 768px) {
   .preview-modal { width: 100vw; max-width: 100vw; }
   .preview-content img, .preview-content video { max-height: 60vh; }
@@ -683,6 +719,13 @@ dialog.mobile-sheet {
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
   word-break: break-all;
+}
+
+#previewFilename {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 80px); /* miejsce na przyciski */
 }
 </style>
 
@@ -800,7 +843,7 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════════════
-// Podgląd pliku (zdjęcia / wideo / PDF)
+// Podgląd pliku (zdjęcia / wideo / audio / PDF)
 // ═══════════════════════════════════════════
 const previewModal = document.getElementById('previewModal');
 const previewBody = document.getElementById('previewBody');
@@ -824,6 +867,32 @@ function openPreview(fileId, filename, type) {
     video.controls = true;
     video.autoplay = true;
     previewBody.appendChild(video);
+  } else if (type === 'audio') {
+    const wrap = document.createElement('div');
+    wrap.className = 'preview-audio-wrap';
+
+    const icon = document.createElement('div');
+    icon.innerHTML = `
+      <svg class="audio-icon" width="64" height="64" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="16" r="3"/>
+      </svg>`;
+    wrap.appendChild(icon);
+
+    const label = document.createElement('p');
+    label.className = 'preview-audio-filename';
+    label.textContent = filename;
+    wrap.appendChild(label);
+
+    const audio = document.createElement('audio');
+    audio.src = src;
+    audio.controls = true;
+    audio.autoplay = true;
+    wrap.appendChild(audio);
+
+    previewBody.appendChild(wrap);
   } else if (type === 'pdf') {
     const iframe = document.createElement('iframe');
     iframe.className = 'preview-pdf';
@@ -849,6 +918,13 @@ function closePreview() {
     video.pause();
     video.removeAttribute('src');
     video.load();
+  }
+  // Zatrzymaj odtwarzanie audio
+  const audio = previewBody.querySelector('audio');
+  if (audio) {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
   }
   previewBody.innerHTML = '';
   previewModal.close();
@@ -914,8 +990,10 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
 
   if (isPreviewable) {
     actions.push({
-      icon: svgIcon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
-      text: 'Podgląd',
+      icon: previewType === 'audio'
+        ? svgIcon('<polygon points="5 3 19 12 5 21 5 3"/>')
+        : svgIcon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+      text: previewType === 'audio' ? 'Odtwórz' : 'Podgląd',
       onClick: () => { mobileModal.close(); openPreview(id, label, previewType); }
     });
   }
@@ -925,7 +1003,7 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
     text: 'Pobierz',
     onClick: () => { window.location.href = `/file/${id}/download`; }
   });
-  
+
   actions.push({
     icon: svgIcon('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
     text: 'Zmień nazwę',

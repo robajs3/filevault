@@ -4,18 +4,18 @@ from .db import db
 
 PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}
 PREVIEWABLE_VIDEO_EXTENSIONS = {"mp4", "webm", "ogg", "mov"}
+PREVIEWABLE_AUDIO_EXTENSIONS = {"mp3", "wav"}
 PREVIEWABLE_PDF_EXTENSIONS = {"pdf"}
 PREVIEW_MIME_MAP = {
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
     "gif": "image/gif", "webp": "image/webp", "bmp": "image/bmp",
     "svg": "image/svg+xml", "mp4": "video/mp4", "webm": "video/webm",
     "ogg": "video/ogg", "mov": "video/quicktime", "pdf": "application/pdf",
+    "mp3": "audio/mpeg", "wav": "audio/wav",
 }
-
 
 class FileRecord(db.Model):
     __tablename__ = "files"
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey("folders.id"), nullable=True)
@@ -44,7 +44,6 @@ class FileRecord(db.Model):
             return False
         if self.share_expires_at:
             expires = self.share_expires_at
-            # Baza może zwrócić datetime bez timezone (naive) — normalizujemy do UTC
             if expires.tzinfo is None:
                 expires = expires.replace(tzinfo=timezone.utc)
             if expires < datetime.now(timezone.utc):
@@ -73,6 +72,8 @@ class FileRecord(db.Model):
             return "image"
         if ext in PREVIEWABLE_VIDEO_EXTENSIONS:
             return "video"
+        if ext in PREVIEWABLE_AUDIO_EXTENSIONS:
+            return "audio"
         if ext in PREVIEWABLE_PDF_EXTENSIONS:
             return "pdf"
         return None
