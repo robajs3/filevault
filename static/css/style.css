@@ -25,6 +25,8 @@ body {
   font-size: 14px;
   line-height: 1.6;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -59,10 +61,35 @@ a:hover { text-decoration: underline; }
 
 /* ─── Main ───────────────────────────────────────── */
 .main-content {
+  flex: 1;          /* rośnie i wypełnia wolne miejsce → footer zawsze na dole */
+  width: 100%;
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
+
+/* ─── Footer ─────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-2);
+  margin-top: auto;  /* dodatkowe zabezpieczenie */
+}
+.footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.footer-link {
+  font-size: .8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.footer-link:hover { color: var(--accent); text-decoration: none; }
 
 /* ─── Alerts ─────────────────────────────────────── */
 .alerts { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.5rem; }
@@ -305,6 +332,14 @@ select option { background: var(--bg-3); color: var(--text); }
   flex-shrink: 0;
   letter-spacing: .05em;
 }
+.file-thumb {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-3);
+}
 .file-info { flex: 1; min-width: 0; }
 .file-name {
   font-weight: 500;
@@ -524,26 +559,4 @@ code { background: var(--bg-3); padding: .1rem .4rem; border-radius: 4px; font-s
   .file-actions { flex-wrap: wrap; }
   .folders-grid { grid-template-columns: 1fr 1fr; }
   .page-header { align-items: flex-start; flex-direction: column; }
-}
-
-/* Nadpisanie koloru ikony folderu */
-.folder-link .folder-icon-svg {
-  color: #d4a72c !important;
-  fill: #d4a72c !important;
-}
-
-.folder-card .folder-link .folder-icon-svg path {
-  fill: #d4a72c !important;
-}
-
-/* Ciemniejszy kafelek folderu */
-.folder-card {
-  background: var(--bg-3) !important;   /* #222636 — ciemniejszy */
-  border-color: var(--border) !important;
-}
-
-/* Hover — delikatny akcent */
-.folder-card:hover {
-  background: #262a3a !important;
-  border-color: var(--accent) !important;
 }

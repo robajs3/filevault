@@ -47,6 +47,13 @@
     {% block content %}{% endblock %}
   </main>
 
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span class="text-muted" style="font-size:.8rem">© 2026 FileVault</span>
+      <a href="{{ url_for('privacy') }}" class="footer-link">Polityka prywatności</a>
+    </div>
+  </footer>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

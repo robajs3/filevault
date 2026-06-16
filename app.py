@@ -2,7 +2,7 @@ import os
 import uuid
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,6 +16,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from PIL import Image, UnidentifiedImageError
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
@@ -24,12 +25,16 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = os.environ.get("UPLOAD_FOLDER", "uploads")
+app.config["THUMBNAIL_FOLDER"] = os.environ.get("THUMBNAIL_FOLDER", os.path.join(app.config["UPLOAD_FOLDER"], "_thumbs"))
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 ALLOWED_EXTENSIONS = set(os.environ.get("ALLOWED_EXTENSIONS", "").split(",")) if os.environ.get("ALLOWED_EXTENSIONS") else None
+
+THUMBNAIL_SIZE = (320, 320)
+THUMBNAILABLE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp"}
 
 db = SQLAlchemy(app)
 
@@ -44,6 +49,7 @@ limiter = Limiter(
 
 class User(db.Model):
     __tablename__ = "users"
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -52,8 +58,20 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
     storage_limit_mb = db.Column(db.Integer, default=2048)
-    files = db.relationship("FileRecord", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
-    folders = db.relationship("Folder", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
+
+    files = db.relationship(
+        "FileRecord",
+        backref="owner",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    folders = db.relationship(
+        "Folder",
+        backref="owner",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -63,8 +81,13 @@ class User(db.Model):
 
     @property
     def used_storage_mb(self):
-        total = db.session.query(db.func.sum(FileRecord.size_bytes)).filter_by(user_id=self.id).scalar() or 0
-        return round(total / (1024 * 1024), 2)
+        total = (
+            db.session.query(db.func.sum(FileRecord.size_bytes))
+            .filter_by(user_id=self.id)
+            .scalar()
+            or 0
+        )
+        return round(float(total) / (1024 * 1024), 2)
 
 
 class Folder(db.Model):
@@ -115,6 +138,7 @@ class FileRecord(db.Model):
     download_limit = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_private = db.Column(db.Boolean, default=True)
+    has_thumbnail = db.Column(db.Boolean, default=False)
 
     @property
     def share_url(self):
@@ -197,6 +221,23 @@ def allowed_file(filename):
         return True
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     return ext in ALLOWED_EXTENSIONS
+
+
+def generate_thumbnail(source_path, stored_name):
+    """Try to create a thumbnail for an image file. Returns True on success."""
+    ext = stored_name.rsplit(".", 1)[-1].lower() if "." in stored_name else ""
+    if ext not in THUMBNAILABLE_EXTENSIONS:
+        return False
+    try:
+        os.makedirs(app.config["THUMBNAIL_FOLDER"], exist_ok=True)
+        with Image.open(source_path) as img:
+            img = img.convert("RGB") if img.mode in ("P", "RGBA", "CMYK") else img
+            img.thumbnail(THUMBNAIL_SIZE)
+            thumb_path = os.path.join(app.config["THUMBNAIL_FOLDER"], stored_name + ".webp")
+            img.save(thumb_path, "WEBP", quality=80)
+        return True
+    except (UnidentifiedImageError, OSError, ValueError):
+        return False
 
 
 def get_user_folder(folder_id):
@@ -327,6 +368,7 @@ def upload():
             os.remove(path)
             flash("Przekroczono limit miejsca na dysku.", "danger")
             break
+        thumb_ok = generate_thumbnail(path, stored_name)
         record = FileRecord(
             user_id=g.user.id,
             folder_id=target_folder.id if target_folder else None,
@@ -334,6 +376,7 @@ def upload():
             stored_name=stored_name,
             size_bytes=size,
             mime_type=f.content_type,
+            has_thumbnail=thumb_ok,
         )
         db.session.add(record)
         db.session.commit()
@@ -358,6 +401,18 @@ def download_own(file_id):
     return send_file(path, download_name=record.original_name, as_attachment=True)
 
 
+@app.route("/file/<int:file_id>/thumbnail")
+@login_required
+def thumbnail(file_id):
+    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    if not record.has_thumbnail:
+        abort(404)
+    path = os.path.join(app.config["THUMBNAIL_FOLDER"], record.stored_name + ".webp")
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, mimetype="image/webp")
+
+
 @app.route("/file/<int:file_id>/delete", methods=["POST"])
 @login_required
 def delete_file(file_id):
@@ -366,6 +421,10 @@ def delete_file(file_id):
     path = os.path.join(app.config["UPLOAD_FOLDER"], record.stored_name)
     if os.path.exists(path):
         os.remove(path)
+    if record.has_thumbnail:
+        thumb_path = os.path.join(app.config["THUMBNAIL_FOLDER"], record.stored_name + ".webp")
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
     log_action("delete", detail=record.original_name)
     db.session.delete(record)
     db.session.commit()
@@ -554,13 +613,17 @@ def delete_folder(folder_id):
     # Collect all descendant folder IDs to delete their files too
     all_folder_ids = [folder_id] + collect_descendant_ids(folder_id)
 
-    # Delete physical files for all files in these folders
+    # Delete physical files (and thumbnails) for all files in these folders
     for fid in all_folder_ids:
         records = FileRecord.query.filter_by(folder_id=fid).all()
         for record in records:
             path = os.path.join(app.config["UPLOAD_FOLDER"], record.stored_name)
             if os.path.exists(path):
                 os.remove(path)
+            if record.has_thumbnail:
+                thumb_path = os.path.join(app.config["THUMBNAIL_FOLDER"], record.stored_name + ".webp")
+                if os.path.exists(thumb_path):
+                    os.remove(thumb_path)
 
     log_action("folder_deleted", detail=folder.name)
     db.session.delete(folder)  # cascade will delete subfolders; files need manual cleanup above
@@ -681,6 +744,7 @@ def api_files():
         "folder_id": f.folder_id,
         "share_url": f.share_url,
         "share_active": f.is_share_active,
+        "has_thumbnail": f.has_thumbnail,
         "created_at": f.created_at.isoformat(),
     } for f in files])
 
@@ -716,6 +780,10 @@ def gone(e):
     return render_template("error.html", code=410,
                            message="Ten link wygasł lub przekroczono limit pobrań."), 410
 
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html", now=date.today().strftime("%d.%m.%Y"))
+ 
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -723,6 +791,7 @@ def init_db():
     with app.app_context():
         db.create_all()
         os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        os.makedirs(app.config["THUMBNAIL_FOLDER"], exist_ok=True)
 
 if __name__ == "__main__":
     init_db()
