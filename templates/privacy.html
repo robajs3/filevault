@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Polityka prywatności — FileVault{% endblock %}
+{% block content %}
+
+<div class="privacy-wrap">
+  <div class="privacy-header">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="privacy-icon">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    <div>
+      <h1>Polityka prywatności</h1>
+      <p class="text-muted">Ostatnia aktualizacja: {{ now }}</p>
+    </div>
+  </div>
+
+  <div class="privacy-card">
+    <p>Twoje dane są przetwarzane zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679
+    (RODO). Administratorem danych osobowych jest operator serwisu FileVault.</p>
+  </div>
+
+  <div class="privacy-card">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <ellipse cx="12" cy="12" rx="10" ry="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      Jakie dane zbieramy?
+    </h2>
+    <ul class="privacy-list">
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>Dane konta</strong> — nazwa użytkownika, adres e-mail, zahaszowane hasło</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>Logi techniczne</strong> — adres IP, znaczniki czasu, wykonywane akcje</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>Pliki</strong> — dane przesłane przez użytkownika w celu ich przechowywania i udostępniania</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>Dane sesji</strong> — ciasteczka sesyjne niezbędne do działania aplikacji</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="privacy-card">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      </svg>
+      Cel przetwarzania
+    </h2>
+    <ul class="privacy-list">
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Uwierzytelnianie i zarządzanie kontami użytkowników</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Przechowywanie i udostępnianie plików zgodnie z wolą użytkownika</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Zapewnienie bezpieczeństwa i monitorowanie nadużyć (logi audytowe)</span>
+      </li>
+      <li>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Statystyki wykorzystania systemu (anonimowe)</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="privacy-card">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      Twoje prawa
+    </h2>
+    <div class="rights-grid">
+      <div class="right-item">
+        <span class="right-label">Dostęp</span>
+        <span class="right-desc">Prawo do uzyskania kopii swoich danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Korekta</span>
+        <span class="right-desc">Prawo do poprawy nieprawidłowych danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Usunięcie</span>
+        <span class="right-desc">Prawo do żądania usunięcia danych („prawo do bycia zapomnianym")</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Ograniczenie</span>
+        <span class="right-desc">Prawo do ograniczenia przetwarzania danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Przeniesienie</span>
+        <span class="right-desc">Prawo do otrzymania danych w ustrukturyzowanym formacie</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Sprzeciw</span>
+        <span class="right-desc">Prawo do wniesienia sprzeciwu wobec przetwarzania</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="privacy-card">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      Kontakt z administratorem
+    </h2>
+    <p>W sprawach dotyczących ochrony danych osobowych prosimy o kontakt:</p>
+    <a href="mailto:kontakt@example.com" class="contact-link">robajsstrzelczyk@gmail.com</a>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem">
+    <a href="{{ url_for('files.dashboard') }}" class="btn btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Powrót
+    </a>
+  </div>
+</div>
+
+<style>
+.privacy-wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; animation: fadeUp .25s ease; }
+
+.privacy-header {
+  display: flex; align-items: center; gap: 1.25rem;
+  padding-bottom: 1.25rem; border-bottom: 1px solid var(--border);
+}
+.privacy-icon { color: var(--accent); flex-shrink: 0; }
+.privacy-header h1 { font-size: 1.6rem; font-weight: 700; }
+
+.privacy-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.privacy-card h2 {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: 1rem; font-weight: 600; color: var(--text);
+}
+.privacy-card h2 svg { color: var(--accent); flex-shrink: 0; }
+
+.privacy-list { list-style: none; display: flex; flex-direction: column; gap: .6rem; padding: 0; }
+.privacy-list li { display: flex; align-items: flex-start; gap: .6rem; font-size: .9rem; color: var(--text-muted); }
+.privacy-list li svg { color: var(--success); flex-shrink: 0; margin-top: 2px; }
+.privacy-list li span strong { color: var(--text); }
+
+.rights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.right-item {
+  background: var(--bg-3); border-radius: var(--radius-sm);
+  padding: .75rem 1rem; display: flex; flex-direction: column; gap: .25rem;
+}
+.right-label { font-size: .8rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+.right-desc  { font-size: .82rem; color: var(--text-muted); }
+
+.contact-link {
+  display: inline-flex; align-items: center; gap: .4rem;
+  color: var(--accent); font-weight: 500; font-size: .95rem;
+}
+.contact-link:hover { text-decoration: underline; }
+
+@media (max-width: 540px) { .rights-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

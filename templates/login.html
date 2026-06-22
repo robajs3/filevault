@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Logowanie — FileVault{% endblock %}
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <h1>FileVault</h1>
+      <p>Zaloguj się do swojego konta</p>
+    </div>
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label for="username">Nazwa użytkownika</label>
+        <input type="text" id="username" name="username" required autocomplete="username" placeholder="twoja_nazwa">
+      </div>
+      <div class="form-group">
+        <label for="password">Hasło</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
+    </form>
+    <div class="auth-footer">
+      Nie masz konta? <a href="{{ url_for('auth.register') }}">Zarejestruj się</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+# środowiska
+venv/
+.env
+.env.*
+.flaskenv
+
+# cache Pythona
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/

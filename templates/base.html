@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FileVault{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  {#
+    Szablony URL generowane przez url_for — JS podmienia __ID__ na właściwe ID pliku.
+    Dzięki temu prefix subpath (/filevault, itp.) jest zawsze poprawny,
+    bez żadnego hardcodowania w JavaScript.
+  #}
+<script>
+    window._urls = {
+      filePreview:   "{{ url_for('files.preview_file',   file_id=999999999) }}".replace('999999999', '__ID__'),
+      fileDownload:  "{{ url_for('files.download_own',   file_id=999999999) }}".replace('999999999', '__ID__'),
+      fileThumbnail: "{{ url_for('files.thumbnail',      file_id=999999999) }}".replace('999999999', '__ID__'),
+    };
+    function fileUrl(key, id) {
+      return window._urls[key].replace('__ID__', id);
+    }
+  </script>
+
+</head>
+<body>
+  {% if session.user_id %}
+  <nav class="navbar">
+    <a href="{{ url_for('files.dashboard') }}" class="nav-brand">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      FileVault
+    </a>
+    <div class="nav-links">
+      {% if g.user and g.user.is_admin %}
+        <a href="{{ url_for('admin.admin_panel') }}" class="nav-link">Admin</a>
+      {% endif %}
+      <span class="nav-user">{{ g.user.username if g.user else '' }}</span>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm">Wyloguj</a>
+    </div>
+  </nav>
+  {% endif %}
+  <main class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alerts">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+              <span>{{ message }}</span>
+              <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span class="text-muted" style="font-size:.8rem">© 2026 FileVault</span>
+      <a href="{{ url_for('privacy') }}" class="footer-link">Polityka prywatności</a>
+    </div>
+  </footer>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

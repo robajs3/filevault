@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Panel admina — FileVault{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Panel administracyjny</h1>
+    <p class="text-muted">Zarządzanie użytkownikami i monitorowanie systemu</p>
+  </div>
+  <a href="{{ url_for('files.dashboard') }}" class="btn btn-ghost">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    Moje pliki
+  </a>
+</div>
+
+<!-- Statystyki -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ users|length }}</div>
+    <div class="stat-label">Użytkownicy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ total_files }}</div>
+    <div class="stat-label">Pliki</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">
+      {% set mb = total_size / 1024 / 1024 %}
+      {% if mb >= 1024 %}{{ "%.1f"|format(mb/1024) }} GB{% else %}{{ "%.1f"|format(mb) }} MB{% endif %}
+    </div>
+    <div class="stat-label">Zajęte miejsce</div>
+  </div>
+</div>
+
+<!-- ═══════ UŻYTKOWNICY ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Użytkownicy</h2>
+    <div class="search-bar" style="max-width:320px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="userSearch" placeholder="Szukaj po nazwie lub emailu…" autocomplete="off">
+      <button class="search-clear" id="userClear" onclick="clearUserSearch()">×</button>
+    </div>
+  </div>
+  <div class="search-count" id="userCount"></div>
+
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="table" id="usersTable">
+      <thead>
+        <tr>
+          <th>Użytkownik</th>
+          <th>Email</th>
+          <th>Rola</th>
+          <th>Status</th>
+          <th>Miejsce</th>
+          <th>Data rejestracji</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr data-user="{{ (u.username + ' ' + u.email)|lower }}">
+          <td><strong>{{ u.username }}</strong></td>
+          <td class="text-muted">{{ u.email }}</td>
+          <td>
+            {% if u.is_admin %}
+            <span class="badge badge-admin">Admin</span>
+            {% else %}
+            <span class="text-muted" style="font-size:.8rem">Użytkownik</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ 'badge-ok' if u.is_active else 'badge-off' }}">
+              {{ 'Aktywny' if u.is_active else 'Zablokowany' }}
+            </span>
+          </td>
+          <td class="text-muted" style="font-size:.82rem">
+            {{ u.used_storage_mb }} / {{ u.storage_limit_mb }} MB
+            <div class="mini-bar"><div style="width:{{ [u.used_storage_mb / u.storage_limit_mb * 100, 100]|min }}%"></div></div>
+          </td>
+          <td class="text-muted" style="font-size:.82rem">{{ u.created_at.strftime('%d.%m.%Y') }}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <!-- Zmień limit -->
+              <form method="POST" action="{{ url_for('admin.set_storage', user_id=u.id) }}" class="inline-form">
+                <input type="number" name="limit_mb" value="{{ u.storage_limit_mb }}"
+                       min="1" class="input-sm" style="width:80px" title="Limit MB">
+                <button type="submit" class="btn btn-sm btn-ghost" title="Ustaw limit">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </form>
+              <!-- Blokuj/Odblokuj -->
+              <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-accent' }}"
+                        title="{{ 'Zablokuj' if u.is_active else 'Odblokuj' }}">
+                  {% if u.is_active %}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  {% else %}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                  </svg>
+                  {% endif %}
+                  {{ 'Zablokuj' if u.is_active else 'Odblokuj' }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="search-empty" id="userEmpty" style="display:none">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <p>Brak użytkowników pasujących do wyszukiwania</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LOGI ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Ostatnie zdarzenia</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <!-- Filtr akcji -->
+      <select id="logActionFilter" class="input-sm" style="min-width:140px">
+        <option value="">Wszystkie akcje</option>
+        <option value="login">login</option>
+        <option value="login_failed">login_failed</option>
+        <option value="logout">logout</option>
+        <option value="register">register</option>
+        <option value="upload">upload</option>
+        <option value="download">download</option>
+        <option value="delete">delete</option>
+        <option value="share">share</option>
+        <option value="folder">folder</option>
+      </select>
+      <!-- Wyszukiwarka logów -->
+      <div class="search-bar" style="max-width:280px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="logSearch" placeholder="Szukaj w logach…" autocomplete="off">
+        <button class="search-clear" id="logClear" onclick="clearLogSearch()">×</button>
+      </div>
+    </div>
+  </div>
+  <div class="search-count" id="logCount"></div>
+
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="table table-sm" id="logsTable">
+      <thead>
+        <tr>
+          <th>Czas</th>
+          <th>Akcja</th>
+          <th>Użytkownik ID</th>
+          <th>Szczegóły</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr data-log="{{ (log.action + ' ' + (log.detail or '') + ' ' + (log.ip or ''))|lower }}">
+          <td class="text-muted" style="font-size:.8rem;white-space:nowrap">
+            {{ log.created_at.strftime('%d.%m.%Y %H:%M') }}
+          </td>
+          <td><span class="log-action log-{{ log.action.split('_')[0] }}">{{ log.action }}</span></td>
+          <td class="text-muted" style="font-size:.82rem">{{ log.user_id or '—' }}</td>
+          <td class="text-muted" style="font-size:.82rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ log.detail or '' }}">{{ log.detail or '—' }}</td>
+          <td class="text-muted" style="font-size:.8rem">{{ log.ip or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="search-empty" id="logEmpty" style="display:none">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <p>Brak logów pasujących do wyszukiwania</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.section-header h2 { margin: 0; }
+
+/* search-bar reused */
+.search-bar { position: relative; flex: 1; }
+.search-bar .search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none;
+}
+.search-bar input { padding-left: 32px; padding-right: 32px; background: var(--bg-2); }
+.search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-muted); font-size: 1.1rem;
+  cursor: pointer; display: none; padding: 0;
+}
+.search-clear:hover { color: var(--text); }
+.search-count { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+
+.search-empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 2rem; color: var(--text-muted); font-size: .85rem;
+  animation: fadeUp .2s ease;
+}
+
+/* mini storage bar */
+.mini-bar { height: 3px; background: var(--bg-3); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.mini-bar div { height: 100%; background: var(--accent); border-radius: 2px; }
+
+.inline-form { display: inline-flex; align-items: center; gap: 4px; }
+
+/* log action badges */
+.log-action {
+  font-size: .75rem; font-family: monospace;
+  padding: .15rem .45rem; border-radius: 4px;
+  background: var(--bg-3); color: var(--text-muted);
+}
+.log-login  { background: rgba(99,102,241,.12); color: var(--accent); }
+.log-upload { background: rgba(34,197,94,.1);  color: var(--success); }
+.log-delete { background: rgba(239,68,68,.1);  color: var(--danger); }
+.log-share  { background: rgba(245,158,11,.1); color: var(--warning); }
+.log-folder { background: rgba(99,102,241,.08); color: #a78bfa; }
+
+.hidden-by-search { display: none !important; }
+</style>
+
+<script>
+// ══════════════════════════════════════
+// Wyszukiwanie użytkowników
+// ══════════════════════════════════════
+const userSearch = document.getElementById('userSearch');
+const userClear  = document.getElementById('userClear');
+const userCount  = document.getElementById('userCount');
+const userEmpty  = document.getElementById('userEmpty');
+
+userSearch.addEventListener('input', runUserSearch);
+
+function runUserSearch() {
+  const q = userSearch.value.trim().toLowerCase();
+  userClear.style.display = q ? 'block' : 'none';
+
+  const rows = document.querySelectorAll('#usersTable tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const match = !q || row.dataset.user.includes(q);
+    row.classList.toggle('hidden-by-search', !match);
+    if (match) visible++;
+  });
+
+  userCount.textContent = q ? `${visible} z ${rows.length} użytkowników` : '';
+  userEmpty.style.display = (q && visible === 0) ? 'flex' : 'none';
+}
+
+function clearUserSearch() {
+  userSearch.value = '';
+  runUserSearch();
+  userSearch.focus();
+}
+
+// ══════════════════════════════════════
+// Wyszukiwanie i filtrowanie logów
+// ══════════════════════════════════════
+const logSearch  = document.getElementById('logSearch');
+const logClear   = document.getElementById('logClear');
+const logCount   = document.getElementById('logCount');
+const logEmpty   = document.getElementById('logEmpty');
+const logFilter  = document.getElementById('logActionFilter');
+
+logSearch.addEventListener('input', runLogSearch);
+logFilter.addEventListener('change', runLogSearch);
+
+function runLogSearch() {
+  const q   = logSearch.value.trim().toLowerCase();
+  const act = logFilter.value.toLowerCase();
+  logClear.style.display = q ? 'block' : 'none';
+
+  const rows = document.querySelectorAll('#logsTable tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const text   = row.dataset.log;
+    const action = row.querySelector('.log-action')?.textContent.trim().toLowerCase() || '';
+    const matchQ   = !q   || text.includes(q);
+    const matchAct = !act || action.includes(act);
+    const show = matchQ && matchAct;
+    row.classList.toggle('hidden-by-search', !show);
+    if (show) visible++;
+  });
+
+  const total = rows.length;
+  logCount.textContent = (q || act) ? `${visible} z ${total} wpisów` : '';
+  logEmpty.style.display = ((q || act) && visible === 0) ? 'flex' : 'none';
+}
+
+function clearLogSearch() {
+  logSearch.value = '';
+  runLogSearch();
+  logSearch.focus();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>ZCNT_ADM – Liczniki wody</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #222;
+        }
+        h1, h2, h3 {
+            color: #003366;
+            page-break-after: avoid;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        h2 {
+            margin-top: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+        }
+        h3 {
+            margin-top: 12px;
+        }
+        p {
+            margin: 4px 0 8px 0;
+        }
+        ul {
+            margin: 4px 0 8px 20px;
+        }
+        .section {
+            page-break-inside: avoid;
+            margin-bottom: 10px;
+        }
+        .img-box {
+            margin: 10px 0 18px 0;
+            text-align: center;
+        }
+        .img-box img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+        }
+        .note {
+            border-left: 3px solid #003366;
+            padding-left: 8px;
+            margin: 6px 0 10px 0;
+            font-size: 10pt;
+            background: #f5f7fa;
+        }
+    </style>
+</head>
+<body>
+
+<h1>ZCNT_ADM – Liczniki wody</h1>
+
+<div class="section">
+    <p>
+        Aplikacja służy do obsługi liczników wody w strukturze:
+        <strong>Klient → Zakład klienta → Lokalizacje → Liczniki</strong>.
+    </p>
+    <p>
+        W celu uruchomienia aplikacji należy wejść w transakcję <strong>ZCNT_ADM</strong>.
+    </p>
+
+    <div class="img-box">
+        <img src="1.png" alt="SCREEN 1 – Ekran startowy transakcji ZCNT_ADM – główny widok z czterema tabelami">
+    </div>
+</div>
+
+<div class="section">
+    <h2>1. Struktura ekranu</h2>
+
+    <p>Na ekranie znajdują się cztery główne tabele:</p>
+    <ul>
+        <li><strong>Lista klientów</strong></li>
+        <li><strong>Zakłady klienta</strong></li>
+        <li><strong>Lokalizacje klienta</strong> (w tym lokalizacje funkcjonalne)</li>
+        <li><strong>Liczniki / punkty pomiarowe</strong></li>
+    </ul>
+
+    <div class="img-box">
+        <img src="2.png" alt="SCREEN 2 – Widok czterech tabel: lista klientów, zakłady, lokalizacje, liczniki">
+    </div>
+</div>
+
+<div class="section">
+    <h2>2. Wybór klienta i zakładu</h2>
+
+    <h3>2.1. Wybór klienta</h3>
+    <p>
+        W tabeli <strong>Lista klientów</strong> należy kliknąć w nazwę lub nazwisko klienta.
+        Po wybraniu klienta w tabeli <strong>Zakłady klienta</strong> wyświetlane są powiązane zakłady.
+    </p>
+
+    <div class="img-box">
+        <img src="3.png" alt="SCREEN 3 – Lista klientów z zaznaczonym wybranym klientem">
+    </div>
+
+    <h3>2.2. Wybór zakładu</h3>
+    <p>
+        W tabeli <strong>Zakłady klienta</strong> należy kliknąć w komórkę kolumny
+        <strong>„opis zakładu zew.”</strong>. Po kliknięciu po prawej stronie ekranu
+        wyświetlane są zainstalowane liczniki oraz pozostałe informacje.
+    </p>
+
+    <div class="img-box">
+        <img src="4.png" alt="SCREEN 4 – Zakłady klienta z zaznaczoną kolumną opis zakładu zew. oraz panelem liczników">
+    </div>
+</div>
+
+<div class="section">
+    <h2>3. Lokalizacje klienta i historia pomiarów</h2>
+
+    <p>
+        W dolnej lewej części ekranu znajduje się tabela <strong>Lokalizacje klienta</strong>,
+        w której dostępny jest podział na lokalizacje funkcjonalne.
+    </p>
+
+    <h3>3.1. Wybór lokalizacji</h3>
+    <p>
+        W celu wybrania lokalizacji należy kliknąć w komórkę kolumny
+        <strong>„opis lok. zew.”</strong>. Po wybraniu lokalizacji po prawej stronie
+        wyświetlane są powiązane liczniki.
+    </p>
+
+    <div class="img-box">
+        <img src="5.png" alt="SCREEN 5 – Lokalizacje klienta z zaznaczoną kolumną opis lok. zew.">
+    </div>
+
+    <h3>3.2. Wejście w historię pomiarów</h3>
+    <p>
+        Po wybraniu lokalizacji i liczników po prawej stronie możliwe jest przejście
+        do historii pomiarów poprzez ikonę <strong>zwoju</strong>.
+    </p>
+
+    <div class="img-box">
+        <img src="6.png" alt="SCREEN 6 – Ikona zwoju umożliwiająca wejście w historię pomiarów">
+    </div>
+</div>
+
+<div class="section">
+    <h2>4. Ewidencja liczników i dodawanie licznika</h2>
+
+    <h3>4.1. Wejście w ewidencję liczników</h3>
+    <p>
+        W celu przejścia do ewidencji liczników należy użyć ikony
+        <strong>telewizora/mikrofalówki</strong>.
+    </p>
+
+    <div class="img-box">
+        <img src="7.png" alt="SCREEN 7 – Ikona ewidencji liczników (telewizor/mikrofalówka)">
+    </div>
+
+    <h3>4.2. Dodanie licznika</h3>
+    <p>
+        W otwartej ewidencji liczników należy wybrać opcję
+        <strong>„dodanie licznika”</strong>.
+    </p>
+
+    <div class="note">
+        Liczniki, które mają przypisany numer punktu pomiarowego, są traktowane jako zamontowane.
+    </div>
+
+    <div class="img-box">
+        <img src="8.png" alt="SCREEN 8 – Ewidencja liczników z przyciskiem dodanie licznika">
+    </div>
+</div>
+
+<div class="section">
+    <h2>5. Dodawanie klienta, zakładu, lokalizacji i punktu pomiarowego</h2>
+
+    <p>
+        Przycisk z ikoną <strong>„+”</strong> służy do dodawania elementów zależnie od aktywnej tabeli:
+    </p>
+    <ul>
+        <li>klienta,</li>
+        <li>zakładu,</li>
+        <li>lokalizacji,</li>
+        <li>punktu pomiarowego.</li>
+    </ul>
+
+    <div class="note">
+        Aby dodać punkt pomiarowy, należy najpierw wybrać lokalizację funkcjonalną.
+    </div>
+
+    <div class="img-box">
+        <img src="9.png" alt="SCREEN 9 – Przykłady użycia przycisku plus w różnych tabelach">
+    </div>
+</div>
+
+<div class="section">
+    <h2>6. Dodawanie początkowego odczytu licznika</h2>
+
+    <p>
+        W celu dodania początkowego odczytu licznika należy kliknąć w komórkę kolumny
+        <strong>opis licznika</strong>. Otwiera się okno, w którym należy wprowadzić:
+    </p>
+    <ul>
+        <li>początkowy odczyt,</li>
+        <li>jednostkę pomiaru.</li>
+        <li>Datę</li>
+    </ul>
+
+    <div class="img-box">
+        <img src="10.png" alt="SCREEN 10 – Okno wprowadzania początkowego odczytu licznika">
+    </div>
+</div>
+
+<div class="section">
+    <h2>7. Rozliczenia</h2>
+
+    <p>
+        Przy tabelach <strong>Lista klientów</strong> oraz <strong>Zakłady klienta</strong>
+        znajduje się ikona kalkulatora umożliwiająca przejście do funkcji rozliczeniowych.
+    </p>
+
+    <div class="img-box">
+        <img src="11.png" alt="SCREEN 11 – Ikona kalkulatora do rozliczeń">
+    </div>
+</div>
+
+<div class="section">
+    <h2>8. Dodawanie klienta – typy klienta</h2>
+
+    <h3>8.1. Formularz dodawania klienta</h3>
+    <p>
+        W celu dodania klienta należy użyć ikony <strong>„+”</strong> przy tabeli
+        <strong>Lista klientów</strong>.
+    </p>
+
+    <div class="img-box">
+        <img src="12.png" alt="SCREEN 12 – Formularz dodawania klienta">
+    </div>
+
+    <h3>8.2. Klient wewnętrzny</h3>
+    <p>
+        Klient wewnętrzny posiada moduł PM, dlatego musi mieć przypisaną
+        lokalizację funkcjonalną.
+    </p>
+
+    <div class="img-box">
+        <img src="13.png" alt="SCREEN 13 – Przykład klienta wewnętrznego z lokalizacją funkcjonalną">
+    </div>
+
+    <h3>8.3. Klient zewnętrzny</h3>
+    <p>
+        Klient zewnętrzny nie posiada modułu PM, dlatego nie można przypisać
+        lokalizacji funkcjonalnej. W opisie lokalizacji należy wprowadzić np. adres.
+    </p>
+
+    <div class="img-box">
+        <img src="14.png" alt="SCREEN 14 – Przykład klienta zewnętrznego z opisem lokalizacji">
+    </div>
+</div>
+
+</body>
+</html>
