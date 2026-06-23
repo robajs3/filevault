@@ -25,8 +25,17 @@ def create_app(config_class=Config) -> Flask:
     # Apply rate limits to specific blueprints/routes
     limiter.limit("100 per minute")(auth_bp)
     limiter.limit("50 per hour")(auth_bp)
-    limiter.limit("30 per hour")(files_bp)
     limiter.limit("30 per hour")(share_bp)
+
+    # Miniaturki i podgląd pliku to statyczne serwowanie — wyłączamy limiter,
+    # żeby dashboard z wieloma plikami nie wyczerpywał puli requestów.
+    from controllers.files import thumbnail, preview_file, download_own
+    limiter.exempt(thumbnail)
+    limiter.exempt(preview_file)
+    limiter.exempt(download_own)
+
+    # Pozostałe operacje na plikach (upload, share, delete, rename, move) — limit
+    limiter.limit("60 per hour")(files_bp)
 
     # Blueprints z prefixem
     app.register_blueprint(auth_bp,    url_prefix=PREFIX)
