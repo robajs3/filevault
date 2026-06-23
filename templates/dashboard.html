@@ -245,10 +245,10 @@
 <dialog id="uploadModal" class="modal">
   <div class="modal-header">
     <h2>Wgraj pliki</h2>
-    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+    <button class="modal-close" id="uploadModalClose" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    <form method="POST" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
+    <form id="uploadForm" enctype="multipart/form-data" data-upload-url="{{ url_for('files.upload') }}">
       {% if current_folder %}<input type="hidden" name="folder_id" value="{{ current_folder.id }}">{% endif %}
       <div class="drop-zone" id="dropZone">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -271,11 +271,70 @@
       {% endif %}
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
-        <button type="submit" class="btn btn-primary">Wgraj</button>
+        <button type="button" class="btn btn-primary" id="uploadSubmitBtn" onclick="startUpload()">Wgraj</button>
       </div>
     </form>
   </div>
 </dialog>
+
+<!-- Nakładka z kółkiem postępu -->
+<div id="uploadOverlay" style="display:none">
+  <div id="uploadProgressBox">
+    <svg id="uploadCircleSvg" viewBox="0 0 120 120" width="120" height="120">
+      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
+      <circle id="uploadProgressCircle" cx="60" cy="60" r="52" fill="none"
+              stroke="var(--accent)" stroke-width="10"
+              stroke-linecap="round"
+              stroke-dasharray="326.7"
+              stroke-dashoffset="326.7"
+              transform="rotate(-90 60 60)"/>
+    </svg>
+    <div id="uploadPercentText">0%</div>
+    <div id="uploadFileName"></div>
+  </div>
+</div>
+
+<style>
+#uploadOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+#uploadProgressBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+#uploadCircleSvg {
+  filter: drop-shadow(0 0 18px rgba(99,102,241,.45));
+}
+#uploadProgressCircle {
+  transition: stroke-dashoffset .15s ease;
+}
+#uploadPercentText {
+  position: absolute;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  /* centered inside svg */
+  margin-top: -146px;
+}
+#uploadFileName {
+  color: rgba(255,255,255,.7);
+  font-size: .85rem;
+  max-width: 260px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
 
 <!-- Nowy folder -->
 <dialog id="newFolderModal" class="modal">
