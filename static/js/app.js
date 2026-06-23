@@ -87,7 +87,17 @@ function openShare(fileId, filename) {
   const form  = document.getElementById('shareForm');
   const name  = document.getElementById('shareFilename');
   if (!modal) return;
-  form.action = `/file/${fileId}/share`;
+  // Derive prefix from the current path to support any url_prefix (e.g. /filevault)
+  const prefix = window.APP_PREFIX || (() => {
+    const parts = window.location.pathname.split('/');
+    // Find the segment before known view names, or fall back to first segment
+    const knownViews = ['dashboard', 'folder', 'file', 'profile', 'admin', 'rooms'];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (knownViews.includes(parts[i])) return parts.slice(0, i).join('/');
+    }
+    return '/' + (parts[1] || '');
+  })();
+  form.action = `${prefix}/file/${fileId}/share`;
   if (name) name.textContent = filename;
   modal.showModal();
 }
