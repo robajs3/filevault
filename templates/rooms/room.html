@@ -139,32 +139,72 @@
   {% if room_files %}
   <div class="room-files-list" style="margin-top:{% if subfolders %}12px{% else %}0{% endif %}">
     {% for rf in room_files %}
-    <div class="room-file-row">
-      <div class="room-file-icon">
-        {% set ext = rf.file_record.original_name.rsplit('.', 1)[-1].upper() if '.' in rf.file_record.original_name else '?' %}
+    {% set fr = rf.file_record %}
+    {% set can_remove = membership.can_delete_any() or rf.uploaded_by_id == g.user.id %}
+    {% set can_edit   = membership.can_upload() and rf.uploaded_by_id == g.user.id %}
+    <div class="room-file-row"
+         data-rf-id="{{ rf.id }}"
+         data-file-id="{{ fr.id }}"
+         data-label="{{ fr.original_name|replace("'","\'")|replace('"','\"') }}"
+         data-previewable="{{ 'true' if fr.is_previewable else 'false' }}"
+         data-preview-type="{{ fr.preview_type or '' }}"
+         data-can-remove="{{ 'true' if can_remove else 'false' }}"
+         data-can-edit="{{ 'true' if can_edit else 'false' }}">
+      <div class="room-file-icon{% if fr.is_previewable %} room-file-icon--clickable{% endif %}"
+           {% if fr.is_previewable %}onclick="openRoomPreview({{ fr.id }}, '{{ fr.original_name|replace("'","\'")|replace('"','\"') }}', '{{ fr.preview_type }}')" title="Podgląd"{% endif %}>
+        {% if fr.has_thumbnail %}
+        <img src="{{ url_for('files.thumbnail', file_id=fr.id) }}" alt="" style="width:38px;height:38px;object-fit:cover;border-radius:6px;">
+        {% if fr.is_previewable %}<div class="room-thumb-overlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>{% endif %}
+        {% else %}
+        {% set ext = fr.original_name.rsplit('.', 1)[-1].upper() if '.' in fr.original_name else '?' %}
         {{ ext[:4] }}
+        {% endif %}
       </div>
       <div class="room-file-info">
-        <div class="room-file-name">{{ rf.file_record.original_name }}</div>
+        {% if fr.is_previewable %}
+        <div class="room-file-name" style="cursor:pointer"
+             onclick="openRoomPreview({{ fr.id }}, '{{ fr.original_name|replace("'","\'")|replace('"','\"') }}', '{{ fr.preview_type }}')">
+          {{ fr.original_name }}
+        </div>
+        {% else %}
+        <div class="room-file-name">{{ fr.original_name }}</div>
+        {% endif %}
         <div class="room-file-meta">
-          {{ rf.file_record.size_human }} ·
-          dodal <strong>{{ rf.uploaded_by.username }}</strong> ·
+          {{ fr.size_human }} ·
+          dodał <strong>{{ rf.uploaded_by.username }}</strong> ·
           {{ rf.uploaded_at.strftime('%d.%m.%Y %H:%M') }}
         </div>
       </div>
       <div class="room-file-actions">
-        <a href="{{ url_for('files.download_own', file_id=rf.file_record.id) }}"
+        {% if fr.is_previewable %}
+        <button class="btn btn-sm btn-ghost" title="Podgląd"
+          onclick="openRoomPreview({{ fr.id }}, '{{ fr.original_name|replace("'","\'")|replace('"','\"') }}', '{{ fr.preview_type }}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        {% endif %}
+        <a href="{{ url_for('files.download_own', file_id=fr.id) }}"
            class="btn btn-sm btn-ghost" title="Pobierz">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
         </a>
-        {% if membership.can_delete_any() or rf.uploaded_by_id == g.user.id %}
+        {% if can_edit %}
+        <button class="btn btn-sm btn-ghost" title="Zmień nazwę"
+          onclick="openRoomRenameFile({{ fr.id }}, '{{ fr.original_name|replace("'","\'")|replace('"','\"') }}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        {% endif %}
+        {% if can_remove %}
         <form method="POST"
               action="{{ url_for('rooms.remove_file', room_id=room.id, room_file_id=rf.id) }}"
-              onsubmit="return confirm('Usunac plik z pokoju?')" style="display:inline">
-          <button type="submit" class="btn btn-sm btn-danger" title="Usun z pokoju">
+              onsubmit="return confirm('Usunąć plik z pokoju?')" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-danger" title="Usuń z pokoju">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
@@ -342,33 +382,95 @@
     <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    {% if my_files %}
-    <form method="POST" action="{{ url_for('rooms.add_file', room_id=room.id) }}">
-      <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-      <div class="form-group">
-        <label>Wybierz plik</label>
-        <select name="file_id" required>
-          <option value="">— wybierz —</option>
-          {% for f in my_files %}
-          <option value="{{ f.id }}" {% if f.id in shared_file_ids %}disabled{% endif %}>
-            {{ f.original_name }} ({{ f.size_human }}){% if f.id in shared_file_ids %} — juz dodany{% endif %}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
-        <button type="submit" class="btn btn-primary">Dodaj</button>
-      </div>
-    </form>
-    {% else %}
-    <p class="text-muted">Nie masz zadnych plikow. <a href="{{ url_for('files.dashboard') }}">Wgraj pliki</a> i wrocc tutaj.</p>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Zamknij</button>
+    <!-- Zakładki: Wgraj / Z dysku -->
+    <div class="add-file-tabs">
+      <button class="add-file-tab active" onclick="switchAddTab('upload')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Wgraj nowy plik
+      </button>
+      <button class="add-file-tab" onclick="switchAddTab('pick')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Z mojego dysku
+      </button>
     </div>
-    {% endif %}
+
+    <!-- Panel: Wgraj nowy plik -->
+    <div id="addTab-upload">
+      <form id="roomUploadForm"
+            enctype="multipart/form-data"
+            data-upload-url="{{ url_for('rooms.upload_to_room', room_id=room.id) }}">
+        <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+        <div class="drop-zone" id="roomDropZone">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Przeciągnij pliki tutaj lub kliknij</p>
+          <input type="file" name="file" id="roomFileInput" multiple hidden>
+          <button type="button" class="btn btn-outline btn-sm"
+                  onclick="document.getElementById('roomFileInput').click()">Wybierz pliki</button>
+          <div id="roomFileList" class="file-list-preview"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+          <button type="button" class="btn btn-primary" onclick="startRoomUpload()">Wgraj</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Panel: Z mojego dysku -->
+    <div id="addTab-pick" style="display:none">
+      {% if my_files %}
+      <form method="POST" action="{{ url_for('rooms.add_file', room_id=room.id) }}">
+        <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+        <div class="form-group" style="margin-top:4px">
+          <label>Wybierz plik z dysku</label>
+          <select name="file_id" required>
+            <option value="">— wybierz —</option>
+            {% for f in my_files %}
+            <option value="{{ f.id }}" {% if f.id in shared_file_ids %}disabled{% endif %}>
+              {{ f.original_name }} ({{ f.size_human }}){% if f.id in shared_file_ids %} — już dodany{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+          <button type="submit" class="btn btn-primary">Dodaj</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="text-muted" style="margin-top:12px">Brak plików na dysku. <a href="{{ url_for('files.dashboard') }}">Wgraj pliki</a> najpierw.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Zamknij</button>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </dialog>
+
+<!-- Nakładka z kółkiem postępu (pokój) -->
+<div id="roomUploadOverlay" style="display:none">
+  <div id="roomUploadProgressBox">
+    <svg viewBox="0 0 120 120" width="120" height="120">
+      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
+      <circle id="roomProgressCircle" cx="60" cy="60" r="52" fill="none"
+              stroke="var(--accent)" stroke-width="10"
+              stroke-linecap="round"
+              stroke-dasharray="326.7"
+              stroke-dashoffset="326.7"
+              transform="rotate(-90 60 60)"/>
+    </svg>
+    <div id="roomPercentText">0%</div>
+    <div id="roomFileName"></div>
+  </div>
+</div>
 
 {% if membership.can_generate_invite() %}
 <dialog id="newInviteModal" class="modal">
@@ -409,6 +511,52 @@
   </div>
 </dialog>
 {% endif %}
+
+<!-- Podgląd pliku (pokój) -->
+<dialog id="roomPreviewModal" class="modal preview-modal">
+  <div class="modal-header">
+    <h2 id="roomPreviewFilename">Podgląd</h2>
+    <div class="preview-header-actions">
+      <a href="#" id="roomPreviewDownloadLink" class="btn btn-sm btn-ghost" title="Pobierz">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </a>
+      <button class="modal-close" onclick="closeRoomPreview()">×</button>
+    </div>
+  </div>
+  <div class="modal-content preview-content" id="roomPreviewBody"></div>
+</dialog>
+
+<!-- Zmień nazwę pliku (pokój) -->
+<dialog id="roomRenameFileModal" class="modal">
+  <div class="modal-header">
+    <h2>Zmień nazwę pliku</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content">
+    <form method="POST" id="roomRenameFileForm">
+      <div class="form-group">
+        <label>Nowa nazwa</label>
+        <input type="text" name="name" id="roomRenameFileInput" required maxlength="255">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Mobile bottom sheet (pokój) -->
+<dialog id="roomMobileActionsModal" class="modal mobile-sheet">
+  <div class="modal-header">
+    <h2 id="roomMobileActionsTitle">Akcje</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content" id="roomMobileActionsBody"></div>
+</dialog>
 
 <div id="toast" class="toast"></div>
 
@@ -497,6 +645,121 @@
 .room-badge--admin  { background:rgba(239,68,68,.12);  color:var(--danger); }
 .room-badge--editor { background:rgba(99,102,241,.15); color:var(--accent); }
 .room-badge--viewer { background:var(--bg-3); color:var(--text-muted); }
+
+/* ── Zakładki Dodaj plik ─────────────────────────────────────── */
+.add-file-tabs {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.add-file-tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); font-size: .82rem; font-family: inherit;
+  cursor: pointer; margin-bottom: -1px; transition: color .15s, border-color .15s;
+}
+.add-file-tab:hover { color: var(--text); }
+.add-file-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Drop zone (pokój) */
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 28px 16px; text-align: center; cursor: pointer;
+  transition: border-color .15s, background .15s; display: flex;
+  flex-direction: column; align-items: center; gap: 10px;
+}
+.drop-zone.dragover { border-color: var(--accent); background: rgba(99,102,241,.06); }
+.drop-zone p { margin: 0; font-size: .85rem; color: var(--text-muted); }
+.file-list-preview { width: 100%; }
+.fp-item { font-size: .8rem; color: var(--text-muted); padding: 3px 0; border-top: 1px solid var(--border); }
+
+/* Nakładka postępu (pokój) */
+#roomUploadOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.65);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; backdrop-filter: blur(4px);
+}
+#roomUploadProgressBox {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative;
+}
+#roomProgressCircle { transition: stroke-dashoffset .15s ease; }
+#roomPercentText {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 1.6rem; font-weight: 700; color: #fff;
+  filter: drop-shadow(0 0 18px rgba(99,102,241,.45));
+}
+#roomFileName {
+  color: rgba(255,255,255,.7); font-size: .85rem;
+  max-width: 260px; text-align: center; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Podgląd (preview) ── */
+.preview-modal { max-width: min(92vw, 900px); width: 100%; }
+.preview-content { padding: 0; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.preview-header-actions { display: flex; align-items: center; gap: 8px; }
+.preview-pdf { width: 100%; height: 75vh; border: none; }
+.preview-unsupported { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 2rem; color: var(--text-muted); }
+
+/* ── Mobile file rows ── */
+.room-file-row {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+}
+.room-file-row.pressing {
+  background: var(--bg-3);
+  border-color: var(--accent);
+  touch-action: none;
+}
+
+/* ── Mobile bottom sheet (pokój) ── */
+dialog.mobile-sheet { max-width: 100%; }
+@media (max-width: 768px) {
+  dialog.mobile-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+    transform: none; width: 100%; max-width: 100%; margin: 0;
+    border-radius: 16px 16px 0 0; max-height: 80vh; overflow-y: auto;
+  }
+  dialog.mobile-sheet[open] { animation: sheetUp .22s ease both; }
+}
+@keyframes sheetUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mobile-action-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 4px; background: none; border: none;
+  border-bottom: 1px solid var(--border); color: var(--text);
+  font-size: .92rem; font-family: inherit; text-align: left; cursor: pointer;
+}
+.mobile-action-btn:last-child { border-bottom: none; }
+.mobile-action-btn svg { flex-shrink: 0; color: var(--text-muted); }
+.mobile-action-btn.danger { color: var(--danger); }
+.mobile-action-btn.danger svg { color: var(--danger); }
+.mobile-action-btn:active { background: var(--bg-3); }
+
+/* ── Klikalny thumbnail ── */
+.room-file-icon--clickable {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.room-file-icon--clickable:hover .room-thumb-overlay {
+  opacity: 1;
+}
+.room-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+  border-radius: 6px;
+  color: #fff;
+}
 </style>
 
 <script>
@@ -527,6 +790,309 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Podgląd pliku (pokój) ────────────────────────────────────────────────────
+const roomPreviewModal       = document.getElementById('roomPreviewModal');
+const roomPreviewBody        = document.getElementById('roomPreviewBody');
+const roomPreviewFilename    = document.getElementById('roomPreviewFilename');
+const roomPreviewDownloadLink = document.getElementById('roomPreviewDownloadLink');
+
+function openRoomPreview(fileId, filename, type) {
+  roomPreviewFilename.textContent = filename;
+  roomPreviewDownloadLink.href = fileUrl('fileDownload', fileId);
+  const src = fileUrl('filePreview', fileId);
+  roomPreviewBody.innerHTML = '';
+
+  if (type === 'image') {
+    const img = document.createElement('img');
+    img.alt = filename;
+    img.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;object-fit:contain;';
+    img.src = src;
+    roomPreviewBody.appendChild(img);
+  } else if (type === 'video') {
+    const video = document.createElement('video');
+    video.src = src; video.controls = true; video.autoplay = true;
+    video.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;';
+    roomPreviewBody.appendChild(video);
+  } else if (type === 'audio') {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:2.5rem 1.5rem;width:100%;';
+    wrap.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div style="font-size:.9rem;color:var(--text-muted);max-width:360px;text-align:center;word-break:break-all;">${filename}</div>`;
+    const audio = document.createElement('audio');
+    audio.src = src; audio.controls = true; audio.autoplay = true;
+    audio.style.cssText = 'width:100%;max-width:420px;';
+    wrap.appendChild(audio);
+    roomPreviewBody.appendChild(wrap);
+  } else if (type === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'preview-pdf';
+    iframe.src = src + '#toolbar=1&navpanes=0';
+    iframe.title = filename;
+    roomPreviewBody.appendChild(iframe);
+  } else {
+    roomPreviewBody.innerHTML = `<div class="preview-unsupported"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Podgląd niedostępny dla tego typu pliku.</p></div>`;
+  }
+  roomPreviewModal.showModal();
+}
+
+function closeRoomPreview() {
+  const video = roomPreviewBody.querySelector('video');
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+  const audio = roomPreviewBody.querySelector('audio');
+  if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
+  roomPreviewBody.innerHTML = '';
+  roomPreviewModal.close();
+}
+
+// ── Zmień nazwę pliku w pokoju ────────────────────────────────────────────────
+const ROOM_PREFIX = '{{ url_for("rooms.room_view", room_id=room.id) }}'.split('/rooms/')[0];
+
+function openRoomRenameFile(fileId, currentName) {
+  document.getElementById('roomRenameFileInput').value = currentName;
+  document.getElementById('roomRenameFileForm').action = ROOM_PREFIX + '/file/' + fileId + '/rename';
+  document.getElementById('roomRenameFileModal').showModal();
+}
+
+// ── Mobile long-press (pokój) ─────────────────────────────────────────────────
+const ROOM_IS_TOUCH   = window.matchMedia('(max-width: 768px)').matches || ('ontouchstart' in window);
+const ROOM_PRESS_MS   = 480;
+const roomMobileModal = document.getElementById('roomMobileActionsModal');
+const roomMobileTitle = document.getElementById('roomMobileActionsTitle');
+const roomMobileBody  = document.getElementById('roomMobileActionsBody');
+
+function svgI(path) {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${path}</svg>`;
+}
+
+function buildRoomFileActions(row) {
+  const fileId    = row.dataset.fileId;
+  const rfId      = row.dataset.rfId;
+  const label     = row.dataset.label;
+  const previewable = row.dataset.previewable === 'true';
+  const previewType = row.dataset.previewType;
+  const canRemove = row.dataset.canRemove === 'true';
+  const canEdit   = row.dataset.canEdit   === 'true';
+
+  roomMobileTitle.textContent = label;
+  roomMobileBody.innerHTML = '';
+
+  const actions = [];
+
+  if (previewable) {
+    actions.push({
+      icon: svgI('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+      text: 'Podgląd',
+      onClick: () => { roomMobileModal.close(); openRoomPreview(fileId, label, previewType); }
+    });
+  }
+
+  actions.push({
+    icon: svgI('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+    text: 'Pobierz',
+    onClick: () => { window.location.href = fileUrl('fileDownload', fileId); }
+  });
+
+  if (canEdit) {
+    actions.push({
+      icon: svgI('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
+      text: 'Zmień nazwę',
+      onClick: () => { roomMobileModal.close(); openRoomRenameFile(fileId, label); }
+    });
+  }
+
+  if (canRemove) {
+    actions.push({
+      icon: svgI('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
+      text: 'Usuń z pokoju',
+      danger: true,
+      onClick: () => {
+        if (confirm(`Usunąć plik "${label}" z pokoju?`)) {
+          const form = row.querySelector('form[action*="/remove"]');
+          if (form) form.submit();
+        }
+      }
+    });
+  }
+
+  for (const a of actions) {
+    const btn = document.createElement('button');
+    btn.className = 'mobile-action-btn' + (a.danger ? ' danger' : '');
+    btn.innerHTML = `${a.icon}<span>${a.text}</span>`;
+    btn.addEventListener('click', a.onClick);
+    roomMobileBody.appendChild(btn);
+  }
+
+  roomMobileModal.showModal();
+}
+
+function attachRoomLongPress(row) {
+  let timer = null, moved = false, startY = 0;
+
+  const start = (e) => {
+    moved = false;
+    startY = e.touches[0].clientY;
+    row.classList.add('pressing');
+    timer = setTimeout(() => {
+      row.classList.remove('pressing');
+      if (moved) return;
+      if (navigator.vibrate) navigator.vibrate(8);
+      buildRoomFileActions(row);
+    }, ROOM_PRESS_MS);
+  };
+
+  const onMove = (e) => {
+    if (Math.abs(e.touches[0].clientY - startY) > 8) {
+      moved = true;
+      cancel();
+    }
+    // blokuj zoom/resize tylko gdy aktywnie trzymamy
+    if (timer !== null) e.preventDefault();
+  };
+
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+    row.classList.remove('pressing');
+  };
+
+  row.addEventListener('touchstart', start, { passive: true });
+  row.addEventListener('touchmove', onMove, { passive: false });
+  row.addEventListener('touchend', cancel, { passive: true });
+  row.addEventListener('touchcancel', cancel, { passive: true });
+  // blokuj natywne menu kontekstowe (długie przytrzymanie w przeglądarce)
+  row.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+if (ROOM_IS_TOUCH) {
+  document.querySelectorAll('.room-file-row[data-rf-id]').forEach(attachRoomLongPress);
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('dialog.modal').forEach(d => {
+  d.addEventListener('click', e => { if (e.target === d) d.close(); });
+});
+
+// ── Zakładki Dodaj plik ───────────────────────────────────────────────────────
+function switchAddTab(name) {
+  document.querySelectorAll('.add-file-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('addTab-upload').style.display = name === 'upload' ? '' : 'none';
+  document.getElementById('addTab-pick').style.display   = name === 'pick'   ? '' : 'none';
+  const tabs = document.querySelectorAll('.add-file-tab');
+  tabs[name === 'upload' ? 0 : 1].classList.add('active');
+}
+
+// ── Drop zone w pokoju ────────────────────────────────────────────────────────
+(function() {
+  const dz   = document.getElementById('roomDropZone');
+  const fi   = document.getElementById('roomFileInput');
+  const list = document.getElementById('roomFileList');
+  if (!dz) return;
+
+  ['dragenter','dragover'].forEach(e =>
+    dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e =>
+    dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', ev => {
+    fi.files = ev.dataTransfer.files;
+    renderRoomFileList(fi.files);
+  });
+  fi.addEventListener('change', () => renderRoomFileList(fi.files));
+
+  function renderRoomFileList(files) {
+    list.innerHTML = '';
+    Array.from(files).forEach(f => {
+      const d = document.createElement('div');
+      d.className = 'fp-item';
+      d.textContent = f.name + ' (' + formatRoomBytes(f.size) + ')';
+      list.appendChild(d);
+    });
+  }
+
+  function formatRoomBytes(b) {
+    if (b < 1024)       return b + ' B';
+    if (b < 1048576)    return (b/1024).toFixed(1)   + ' KB';
+    if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+    return (b/1073741824).toFixed(1) + ' GB';
+  }
+})();
+
+// ── Upload pliku do pokoju z paskiem postępu ──────────────────────────────────
+function startRoomUpload() {
+  const form      = document.getElementById('roomUploadForm');
+  const fileInput = document.getElementById('roomFileInput');
+
+  if (!fileInput || fileInput.files.length === 0) {
+    showToast('Wybierz co najmniej jeden plik.');
+    return;
+  }
+
+  const files     = Array.from(fileInput.files);
+  const totalSize = files.reduce((s, f) => s + f.size, 0);
+  let loadedTotal  = 0;
+  let currentIndex = 0;
+
+  const folderField = form.querySelector('[name="folder_id"]');
+  const folderId    = folderField ? folderField.value : '';
+
+  const overlay = document.getElementById('roomUploadOverlay');
+  const circle  = document.getElementById('roomProgressCircle');
+  const pctText = document.getElementById('roomPercentText');
+  const nameEl  = document.getElementById('roomFileName');
+  const CIRC    = 326.7;
+
+  function setProgress(pct) {
+    circle.style.strokeDashoffset = CIRC * (1 - pct / 100);
+    pctText.textContent = Math.round(pct) + '%';
+  }
+
+  document.getElementById('addFileModal').close();
+  overlay.style.display = 'flex';
+  setProgress(0);
+
+  function uploadNext() {
+    if (currentIndex >= files.length) {
+      overlay.style.display = 'none';
+      window.location.reload();
+      return;
+    }
+
+    const file = files[currentIndex];
+    nameEl.textContent = file.name;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    if (folderId) fd.append('folder_id', folderId);
+
+    const xhr        = new XMLHttpRequest();
+    const prevLoaded = loadedTotal;
+
+    xhr.upload.addEventListener('progress', function(e) {
+      if (!e.lengthComputable) return;
+      const pct = ((prevLoaded + e.loaded) / totalSize) * 100;
+      setProgress(Math.min(pct, 99));
+    });
+
+    xhr.addEventListener('load', function() {
+      loadedTotal += file.size;
+      currentIndex++;
+      setProgress((loadedTotal / totalSize) * 100);
+      uploadNext();
+    });
+
+    xhr.addEventListener('error', function() {
+      overlay.style.display = 'none';
+      showToast('Błąd podczas wgrywania: ' + file.name);
+      currentIndex++;
+      uploadNext();
+    });
+
+    xhr.open('POST', form.dataset.uploadUrl);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(fd);
+  }
+
+  uploadNext();
 }
 </script>
 {% endblock %}

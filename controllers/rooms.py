@@ -340,3 +340,49 @@ def rename_folder(room_id, folder_id):
     if folder.parent_id:
         return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder.parent_id))
     return redirect(url_for("rooms.room_view", room_id=room_id))
+
+# ── Wgraj nowy plik bezpośrednio do pokoju ───────────────────────────────────
+
+@rooms_bp.route("/rooms/<int:room_id>/files/upload", methods=["POST"])
+@login_required
+def upload_to_room(room_id):
+    from services.file_service import FileService
+    from flask import jsonify
+
+    room = Room.query.get_or_404(room_id)
+    membership = RoomService.get_membership(room, g.user)
+    if not membership or not membership.can_upload():
+        abort(403)
+
+    folder_id_raw = request.form.get("folder_id", "").strip()
+    folder_id = int(folder_id_raw) if folder_id_raw and folder_id_raw.isdigit() else None
+
+    if "file" not in request.files:
+        return jsonify({"ok": False, "error": "Brak pliku."}), 400
+
+    uploaded = 0
+    errors = []
+    for f in request.files.getlist("file"):
+        record, err = FileService.save_upload(f, g.user)
+        if err:
+            errors.append(err)
+            continue
+        _, err2 = RoomService.add_file(room, record, g.user, folder_id=folder_id)
+        if err2:
+            errors.append(err2)
+        else:
+            uploaded += 1
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if uploaded:
+            return jsonify({"ok": True, "uploaded": uploaded})
+        return jsonify({"ok": False, "error": "; ".join(errors)}), 400
+
+    if uploaded:
+        flash(f"Przesłano {uploaded} plik(ów) do pokoju.", "success")
+    for e in errors:
+        flash(e, "warning")
+
+    if folder_id:
+        return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder_id))
+    return redirect(url_for("rooms.room_view", room_id=room_id))
