@@ -117,7 +117,7 @@ class FileService:
     @staticmethod
     def create_share(record: FileRecord, expires_hours: int, password: str = "", download_limit: str = "") -> None:
         record.share_token = secrets.token_urlsafe(32)
-        record.share_expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+        record.share_expires_at = None if expires_hours == 0 else datetime.now(timezone.utc) + timedelta(hours=expires_hours)
         record.share_password_hash = generate_password_hash(password) if password else None
         record.download_limit = int(download_limit) if download_limit.isdigit() else None
         record.download_count = 0

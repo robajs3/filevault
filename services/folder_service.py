@@ -71,7 +71,7 @@ class FolderService:
     @staticmethod
     def create_share(folder: Folder, expires_hours: int, password: str = "") -> None:
         folder.share_token = secrets.token_urlsafe(32)
-        folder.share_expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+        folder.share_expires_at = None if expires_hours == 0 else datetime.now(timezone.utc) + timedelta(hours=expires_hours)
         folder.share_password_hash = generate_password_hash(password) if password else None
         db.session.commit()
         log_action("folder_share_created", detail=folder.name)

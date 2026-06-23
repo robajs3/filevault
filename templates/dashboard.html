@@ -23,6 +23,18 @@
     <p class="text-muted">{{ folders|length }} folder(ów) · {{ files|length }} plik(ów) · {{ user.used_storage_mb }} / {{ user.storage_limit_mb }} MB</p>
   </div>
   <div class="header-actions">
+    <button class="btn btn-outline" onclick="openSharedLinksModal()" title="Moje udostępnienia" id="sharedLinksBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      Udostępnienia
+      {%- set active_shares_count = (files | selectattr('is_share_active') | list | length) + (folders | selectattr('is_share_active') | list | length) -%}
+      {% if active_shares_count > 0 %}
+      <span class="share-count-badge">{{ active_shares_count }}</span>
+      {% endif %}
+    </button>
     <button class="btn btn-outline" onclick="document.getElementById('newFolderModal').showModal()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -511,6 +523,7 @@
         <div class="form-group">
           <label>Wygasa po</label>
           <select name="expires_hours">
+            <option value="0">Nigdy nie wygasa</option>
             <option value="1">1 godzina</option>
             <option value="6">6 godzin</option>
             <option value="24" selected>24 godziny</option>
@@ -549,6 +562,7 @@
         <div class="form-group">
           <label>Wygasa po</label>
           <select name="expires_hours">
+            <option value="0">Nigdy nie wygasa</option>
             <option value="1">1 godzina</option>
             <option value="6">6 godzin</option>
             <option value="24" selected>24 godziny</option>
@@ -567,6 +581,131 @@
         <button type="submit" class="btn btn-primary">Generuj link</button>
       </div>
     </form>
+  </div>
+</dialog>
+
+<!-- ═══ Modal: Moje udostępnienia ═══ -->
+<dialog id="sharedLinksModal" class="modal shared-links-modal">
+  <div class="modal-header">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      Moje udostępnienia
+    </h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content" style="padding:0">
+
+    {%- set shared_files  = files  | selectattr('is_share_active') | list -%}
+    {%- set shared_folders = folders | selectattr('is_share_active') | list -%}
+
+    {% if not shared_files and not shared_folders %}
+    <div class="sl-empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      <p>Brak aktywnych udostępnień</p>
+    </div>
+    {% else %}
+
+    {%- if shared_files %}
+    <div class="sl-section-label">Pliki ({{ shared_files | length }})</div>
+    {% for file in shared_files %}
+    <div class="sl-row">
+      <div class="sl-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="sl-info">
+        <div class="sl-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+        <div class="sl-meta">
+          {% if file.share_expires_at %}
+          <span class="sl-expires" data-expires="{{ file.share_expires_at.isoformat() }}">
+            Wygasa: {{ file.share_expires_at.strftime('%d.%m.%Y %H:%M') }}
+          </span>
+          {% else %}
+          <span class="sl-expires sl-no-expire">Bez wygaśnięcia</span>
+          {% endif %}
+          {% if file.download_limit %}
+          · <span class="sl-downloads">{{ file.download_count }}/{{ file.download_limit }} pobrań</span>
+          {% else %}
+          · <span class="sl-downloads">{{ file.download_count }} pobrań</span>
+          {% endif %}
+          {% if file.share_password_hash %}
+          · <span class="sl-pass-protected">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Chroniony hasłem
+            </span>
+          {% endif %}
+        </div>
+        <div class="sl-url-row">
+          <input class="sl-url-input" readonly value="{{ file.share_url }}" onclick="this.select()">
+          <button class="sl-copy-btn" onclick="copySlLink('{{ file.share_url }}', this)" title="Kopiuj link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {%- endif %}
+
+    {%- if shared_folders %}
+    <div class="sl-section-label">Foldery ({{ shared_folders | length }})</div>
+    {% for folder in shared_folders %}
+    <div class="sl-row">
+      <div class="sl-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sl-info">
+        <div class="sl-name" title="{{ folder.name }}">{{ folder.name }}</div>
+        <div class="sl-meta">
+          {% if folder.share_expires_at %}
+          <span class="sl-expires" data-expires="{{ folder.share_expires_at.isoformat() }}">
+            Wygasa: {{ folder.share_expires_at.strftime('%d.%m.%Y %H:%M') }}
+          </span>
+          {% else %}
+          <span class="sl-expires sl-no-expire">Bez wygaśnięcia</span>
+          {% endif %}
+          {% if folder.share_password_hash %}
+          · <span class="sl-pass-protected">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Chroniony hasłem
+            </span>
+          {% endif %}
+        </div>
+        <div class="sl-url-row">
+          <input class="sl-url-input" readonly value="{{ folder.share_url }}" onclick="this.select()">
+          <button class="sl-copy-btn" onclick="copySlLink('{{ folder.share_url }}', this)" title="Kopiuj link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {%- endif %}
+
+    {% endif %}
   </div>
 </dialog>
 
@@ -603,6 +742,79 @@
 <div id="toast" class="toast"></div>
 
 <style>
+/* ── Badge na przycisku udostępnień ── */
+.share-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff;
+  font-size: .65rem; font-weight: 700; line-height: 1;
+  min-width: 16px; height: 16px; border-radius: 99px;
+  padding: 0 4px; margin-left: 4px;
+}
+
+/* ── Modal udostępnień ── */
+.shared-links-modal { width: 600px; max-width: 96vw; }
+.sl-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 2.5rem 1rem; color: var(--text-muted); font-size: .87rem; text-align: center;
+}
+.sl-section-label {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 10px 20px 4px; border-top: 1px solid var(--border);
+}
+.sl-section-label:first-child { border-top: none; padding-top: 14px; }
+.sl-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 11px 20px; border-bottom: 1px solid var(--border);
+  animation: fadeUp .15s ease both;
+}
+.sl-row:last-child { border-bottom: none; }
+.sl-icon {
+  flex-shrink: 0; margin-top: 2px;
+  color: var(--accent);
+}
+.sl-info { flex: 1; min-width: 0; }
+.sl-name {
+  font-size: .85rem; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text); margin-bottom: 3px;
+}
+.sl-meta {
+  font-size: .74rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.sl-expires { }
+.sl-no-expire { color: var(--text-muted); opacity: .7; }
+.sl-expires[data-expires] { color: #a3e635; }
+.sl-downloads { }
+.sl-pass-protected {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: #facc15;
+}
+.sl-url-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.sl-url-input {
+  flex: 1; min-width: 0;
+  font-size: .73rem; font-family: monospace;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px;
+  color: var(--text-muted); cursor: text;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sl-url-input:focus { outline: none; border-color: var(--accent); color: var(--text); }
+.sl-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 5px 7px; border-radius: 6px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sl-copy-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sl-copy-btn.copied { background: #22c55e; border-color: #22c55e; color: #fff; }
+
 /* ── Wyszukiwarka ── */
 .search-bar-wrap { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .search-bar {
@@ -1354,6 +1566,54 @@ function openCardActions(card) {
 
 if (IS_TOUCH) {
   document.querySelectorAll('.file-card, .folder-card').forEach(attachLongPress);
+}
+
+// ═══════════════════════════════════════════
+// Modal: Moje udostępnienia
+// ═══════════════════════════════════════════
+function openSharedLinksModal() {
+  updateSlCountdowns();
+  document.getElementById('sharedLinksModal').showModal();
+}
+
+function copySlLink(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1500);
+  }).catch(() => {
+    // fallback
+    const tmp = document.createElement('textarea');
+    tmp.value = url;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1500);
+  });
+}
+
+function updateSlCountdowns() {
+  document.querySelectorAll('.sl-expires[data-expires]').forEach(el => {
+    const exp = new Date(el.dataset.expires + (el.dataset.expires.endsWith('Z') ? '' : 'Z'));
+    const now = new Date();
+    const diff = exp - now;
+    if (diff <= 0) {
+      el.textContent = 'Wygasł';
+      el.style.color = '#f87171';
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (h < 24) {
+      el.textContent = `Wygasa za ${h}h ${m}min`;
+      el.style.color = h < 2 ? '#f87171' : '#facc15';
+    } else {
+      const d = Math.floor(h / 24);
+      el.textContent = `Wygasa za ${d} dni`;
+      el.style.color = '#a3e635';
+    }
+  });
 }
 </script>
 {% endblock %}
