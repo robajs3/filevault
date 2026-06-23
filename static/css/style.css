@@ -266,15 +266,12 @@ select option { background: var(--bg-3); color: var(--text); }
   background: var(--bg-2);           /* dark — same as file cards */
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
-  transition: border-color var(--transition), box-shadow var(--transition),
-              transform .12s ease;
+  transition: border-color var(--transition), box-shadow var(--transition);
   animation: fadeUp .2s ease both;
 }
 .folder-card:hover {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(99,102,241,.2), 0 4px 16px rgba(0,0,0,.3);
-  transform: translateY(-1px);
 }
 
 .folder-link {

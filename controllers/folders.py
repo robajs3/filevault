@@ -90,6 +90,33 @@ def delete_folder(folder_id):
     return redirect(url_for("files.dashboard"))
 
 
+@folders_bp.route("/folder/<int:folder_id>/share", methods=["POST"])
+@login_required
+def share_folder(folder_id):
+    folder = _get_user_folder(folder_id)
+    FolderService.create_share(
+        folder,
+        expires_hours=int(request.form.get("expires_hours", 24)),
+        password=request.form.get("share_password", "").strip(),
+    )
+    flash(f"Link do folderu: {folder.share_url}", "success")
+    if folder.parent_id:
+        return redirect(url_for("folders.folder_view", folder_id=folder.parent_id))
+    return redirect(url_for("files.dashboard"))
+
+
+@folders_bp.route("/folder/<int:folder_id>/unshare", methods=["POST"])
+@login_required
+def unshare_folder(folder_id):
+    folder = _get_user_folder(folder_id)
+    parent_id = folder.parent_id
+    FolderService.revoke_share(folder)
+    flash("Udostępnianie folderu wyłączone.", "info")
+    if parent_id:
+        return redirect(url_for("folders.folder_view", folder_id=parent_id))
+    return redirect(url_for("files.dashboard"))
+
+
 @folders_bp.route("/folder/<int:folder_id>/move", methods=["POST"])
 @login_required
 def move_folder(folder_id):

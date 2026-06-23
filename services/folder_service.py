@@ -1,5 +1,8 @@
 import os
+import secrets
+from datetime import datetime, timezone, timedelta
 from flask import current_app
+from werkzeug.security import generate_password_hash
 from models import Folder, FileRecord, db
 from .audit_service import log_action
 
@@ -64,6 +67,22 @@ class FolderService:
         log_action("folder_deleted", detail=folder.name)
         db.session.delete(folder)
         db.session.commit()
+
+    @staticmethod
+    def create_share(folder: Folder, expires_hours: int, password: str = "") -> None:
+        folder.share_token = secrets.token_urlsafe(32)
+        folder.share_expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+        folder.share_password_hash = generate_password_hash(password) if password else None
+        db.session.commit()
+        log_action("folder_share_created", detail=folder.name)
+
+    @staticmethod
+    def revoke_share(folder: Folder) -> None:
+        folder.share_token = None
+        folder.share_expires_at = None
+        folder.share_password_hash = None
+        db.session.commit()
+        log_action("folder_share_revoked", detail=folder.name)
 
     @staticmethod
     def move(folder: Folder, new_parent_id: int | None) -> tuple[bool, str | None]:
