@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Pokoje — FileVault{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Pokoje</h1>
+    <p class="text-muted">Wspólne foldery z innymi użytkownikami</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="document.getElementById('joinModal').showModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      Dołącz przez kod
+    </button>
+    <button class="btn btn-primary" onclick="document.getElementById('createModal').showModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Nowy pokój
+    </button>
+  </div>
+</div>
+
+{% if memberships %}
+<div class="rooms-grid">
+  {% for m in memberships %}
+  <a href="{{ url_for('rooms.room_view', room_id=m.room.id) }}" class="room-card">
+    <div class="room-card__icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <div class="room-card__body">
+      <div class="room-card__name">{{ m.room.name }}</div>
+      {% if m.room.description %}
+        <div class="room-card__desc">{{ m.room.description }}</div>
+      {% endif %}
+      <div class="room-card__meta">
+        {{ m.room.member_count }} członk(ów) · {{ m.room.file_count }} plik(ów)
+      </div>
+    </div>
+    <span class="room-badge room-badge--{{ m.role }}">{{ m.role }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+  <h3>Nie należysz do żadnego pokoju</h3>
+  <p>Utwórz nowy pokój lub dołącz do istniejącego przy pomocy kodu zaproszenia.</p>
+</div>
+{% endif %}
+
+<!-- ═══ MODAL: Dołącz przez kod ═══ -->
+<dialog id="joinModal" class="modal">
+  <div class="modal-header">
+    <h2>Dołącz do pokoju</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content">
+    <form method="POST" action="{{ url_for('rooms.join_room') }}">
+      <div class="form-group">
+        <label>Kod zaproszenia</label>
+        <input type="text" name="code" placeholder="np. AB3X7KQZ"
+               required maxlength="12" autofocus
+               style="text-transform:uppercase;letter-spacing:.12em;font-size:1.1rem;text-align:center">
+        <span class="form-hint">Wpisz 8-znakowy kod otrzymany od właściciela pokoju.</span>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Dołącz</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ═══ MODAL: Nowy pokój ═══ -->
+<dialog id="createModal" class="modal">
+  <div class="modal-header">
+    <h2>Nowy pokój</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content">
+    <form method="POST" action="{{ url_for('rooms.create_room') }}">
+      <div class="form-group">
+        <label>Nazwa pokoju</label>
+        <input type="text" name="name" placeholder="np. Projekt X" required maxlength="120" autofocus>
+      </div>
+      <div class="form-group">
+        <label>Opis (opcjonalnie)</label>
+        <input type="text" name="description" placeholder="Krótki opis…" maxlength="500">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Utwórz</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<style>
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+.room-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-decoration: none !important;
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition), transform .12s ease;
+  animation: fadeUp .2s ease both;
+  position: relative;
+}
+.room-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(99,102,241,.2), 0 4px 16px rgba(0,0,0,.3);
+  transform: translateY(-2px);
+}
+.room-card__icon {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: rgba(99,102,241,.12);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.room-card__body { flex: 1; min-width: 0; }
+.room-card__name { font-weight: 600; font-size: .93rem; }
+.room-card__desc {
+  font-size: .78rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.room-card__meta { font-size: .75rem; color: var(--text-muted); margin-top: 4px; }
+.room-badge {
+  position: absolute; top: 10px; right: 12px;
+  font-size: .68rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; padding: 2px 7px; border-radius: 20px;
+}
+.room-badge--owner  { background: rgba(245,158,11,.15); color: var(--warning); }
+.room-badge--admin  { background: rgba(239,68,68,.12);  color: var(--danger); }
+.room-badge--editor { background: rgba(99,102,241,.15); color: var(--accent); }
+.room-badge--viewer { background: var(--bg-3); color: var(--text-muted); }
+.form-hint { font-size: .77rem; color: var(--text-muted); margin-top: 4px; }
+</style>
+{% endblock %}

@@ -132,15 +132,9 @@
 {% endif %}
     {% if file.is_previewable %}
     <div class="preview-overlay">
-      {% if file.preview_type == 'audio' %}
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="5 3 19 12 5 21 5 3"/>
-      </svg>
-      {% else %}
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
       </svg>
-      {% endif %}
     </div>
     </a>
     {% endif %}
@@ -565,7 +559,7 @@
 
 /* ── Modal podglądu ── */
 .preview-modal {
-  width: 100vw;
+  width: 90vw;
   max-width: 960px;
 }
 .preview-header-actions {
@@ -612,36 +606,6 @@
   color: var(--text-muted);
   text-align: center;
 }
-
-/* ── Podgląd audio ── */
-.preview-audio-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding: 2.5rem 1.5rem;
-  width: 100%;
-}
-.preview-audio-wrap .audio-icon {
-  color: var(--accent);
-  opacity: .7;
-}
-.preview-audio-wrap audio {
-  width: 100%;
-  max-width: 480px;
-}
-.preview-audio-filename {
-  font-size: .85rem;
-  color: var(--text-muted);
-  text-align: center;
-  margin: 0;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 1rem;
-}
-
 @media (max-width: 768px) {
   .preview-modal { width: 100vw; max-width: 100vw; }
   .preview-content img, .preview-content video { max-height: 60vh; }
@@ -720,16 +684,10 @@ dialog.mobile-sheet {
   margin-bottom: 4px;
   word-break: break-all;
 }
-
-#previewFilename {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: calc(100% - 80px); /* miejsce na przyciski */
-}
 </style>
 
 <script>
+const PREFIX = '{{ url_for("files.dashboard") }}'.split('/').slice(0,-1).join('/');
 // ═══════════════════════════════════════════
 // Wyszukiwarka
 // ═══════════════════════════════════════════
@@ -797,13 +755,13 @@ function clearSearch() {
 // ═══════════════════════════════════════════
 function openRenameFile(fileId, currentName) {
   document.getElementById('rename_file_name').value = currentName;
-  document.getElementById('renameFileForm').action = `/file/${fileId}/rename`;
+  document.getElementById('renameFileForm').action = `${PREFIX}/file/${fileId}/rename`;
   document.getElementById('renameFileModal').showModal();
 }
 
 function openShare(fileId, filename) {
   document.getElementById('shareFilename').textContent = filename;
-  document.getElementById('shareForm').action = `/file/${fileId}/share`;
+  document.getElementById('shareForm').action = `${PREFIX}/file/${fileId}/share`;
   document.getElementById('shareModal').showModal();
 }
 
@@ -815,7 +773,7 @@ function copyLink(url) {
 
 function openMoveFile(fileId, filename, currentFolderId) {
   document.getElementById('moveFileFilename').textContent = filename;
-  document.getElementById('moveFileForm').action = `/file/${fileId}/move`;
+  document.getElementById('moveFileForm').action = `${PREFIX}/file/${fileId}/move`;
   const sel = document.getElementById('move_file_folder');
   sel.value = currentFolderId !== null ? String(currentFolderId) : '';
   document.getElementById('moveFileModal').showModal();
@@ -823,13 +781,13 @@ function openMoveFile(fileId, filename, currentFolderId) {
 
 function openRenameFolder(folderId, currentName) {
   document.getElementById('rename_folder_name').value = currentName;
-  document.getElementById('renameFolderForm').action = `/folder/${folderId}/rename`;
+  document.getElementById('renameFolderForm').action = `${PREFIX}/folder/${folderId}/rename`;
   document.getElementById('renameFolderModal').showModal();
 }
 
 function openMoveFolder(folderId, folderName) {
   document.getElementById('moveFolderName').textContent = folderName;
-  document.getElementById('moveFolderForm').action = `/folder/${folderId}/move`;
+  document.getElementById('moveFolderForm').action = `${PREFIX}/folder/${folderId}/move`;
   const sel = document.getElementById('move_folder_parent');
   for (const opt of sel.options) opt.disabled = opt.value === String(folderId);
   document.getElementById('moveFolderModal').showModal();
@@ -843,66 +801,77 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════════════
-// Podgląd pliku (zdjęcia / wideo / audio / PDF)
+// Podgląd pliku (zdjęcia / wideo / PDF)
 // ═══════════════════════════════════════════
 const previewModal = document.getElementById('previewModal');
 const previewBody = document.getElementById('previewBody');
 const previewFilename = document.getElementById('previewFilename');
 const previewDownloadLink = document.getElementById('previewDownloadLink');
 
+// ── Wklej tę funkcję w dashboard.html zamiast istniejącej openPreview ─────────
+//
+// Wymaga window._urls zdefiniowanego w base.html (patrz base.html).
+// Obsługuje: image, video, audio, pdf.
+
 function openPreview(fileId, filename, type) {
   previewFilename.textContent = filename;
-  previewDownloadLink.href = `/file/${fileId}/download`;
-  const src = `/file/${fileId}/preview`;
+  previewDownloadLink.href = fileUrl('fileDownload', fileId);
+
+  const src = fileUrl('filePreview', fileId);
   previewBody.innerHTML = '';
 
   if (type === 'image') {
     const img = document.createElement('img');
-    img.src = src;
     img.alt = filename;
+    img.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;object-fit:contain;';
+    // Ustaw src po dodaniu do DOM żeby spinner działał poprawnie
+    img.src = src;
     previewBody.appendChild(img);
+
   } else if (type === 'video') {
     const video = document.createElement('video');
     video.src = src;
     video.controls = true;
     video.autoplay = true;
+    video.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;';
     previewBody.appendChild(video);
+
   } else if (type === 'audio') {
     const wrap = document.createElement('div');
-    wrap.className = 'preview-audio-wrap';
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:2.5rem 1.5rem;width:100%;';
 
-    const icon = document.createElement('div');
-    icon.innerHTML = `
-      <svg class="audio-icon" width="64" height="64" viewBox="0 0 24 24"
-           fill="none" stroke="currentColor" stroke-width="1.2">
+    // Ikonka noty muzycznej
+    wrap.innerHTML = `
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent,#6366f1)">
         <path d="M9 18V5l12-2v13"/>
-        <circle cx="6" cy="18" r="3"/>
-        <circle cx="18" cy="16" r="3"/>
-      </svg>`;
-    wrap.appendChild(icon);
-
-    const label = document.createElement('p');
-    label.className = 'preview-audio-filename';
-    label.textContent = filename;
-    wrap.appendChild(label);
+        <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+      <div style="font-size:.9rem;color:var(--text-muted);max-width:360px;text-align:center;word-break:break-all;">${filename}</div>
+    `;
 
     const audio = document.createElement('audio');
     audio.src = src;
     audio.controls = true;
     audio.autoplay = true;
+    audio.style.cssText = 'width:100%;max-width:420px;';
     wrap.appendChild(audio);
-
     previewBody.appendChild(wrap);
+
   } else if (type === 'pdf') {
     const iframe = document.createElement('iframe');
     iframe.className = 'preview-pdf';
-    iframe.src = src;
+    // Dodaj #toolbar=1 żeby Chrome pokazał własny toolbar PDF
+    iframe.src = src + '#toolbar=1&navpanes=0';
+    iframe.title = filename;
     previewBody.appendChild(iframe);
+
   } else {
     previewBody.innerHTML = `
       <div class="preview-unsupported">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <p>Podgląd niedostępny dla tego typu pliku.</p>
       </div>`;
@@ -911,34 +880,15 @@ function openPreview(fileId, filename, type) {
   previewModal.showModal();
 }
 
+// ── closePreview — zatrzymuje też audio ───────────────────────────────────────
 function closePreview() {
-  // Zatrzymaj odtwarzanie wideo i zwolnij zasoby przed zamknięciem
   const video = previewBody.querySelector('video');
-  if (video) {
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-  }
-  // Zatrzymaj odtwarzanie audio
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
   const audio = previewBody.querySelector('audio');
-  if (audio) {
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-  }
+  if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
   previewBody.innerHTML = '';
   previewModal.close();
 }
-
-previewModal.addEventListener('cancel', closePreview);
-previewModal.addEventListener('click', (e) => {
-  // Zamknij po kliknięciu w tło dialogu (poza modal-content)
-  const rect = previewModal.getBoundingClientRect();
-  const inDialog = e.clientX >= rect.left && e.clientX <= rect.right &&
-                   e.clientY >= rect.top && e.clientY <= rect.bottom;
-  if (!inDialog) closePreview();
-});
-
 // ═══════════════════════════════════════════
 // Drag & drop
 // ═══════════════════════════════════════════
@@ -990,10 +940,8 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
 
   if (isPreviewable) {
     actions.push({
-      icon: previewType === 'audio'
-        ? svgIcon('<polygon points="5 3 19 12 5 21 5 3"/>')
-        : svgIcon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
-      text: previewType === 'audio' ? 'Odtwórz' : 'Podgląd',
+      icon: svgIcon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+      text: 'Podgląd',
       onClick: () => { mobileModal.close(); openPreview(id, label, previewType); }
     });
   }
@@ -1003,7 +951,7 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
     text: 'Pobierz',
     onClick: () => { window.location.href = `/file/${id}/download`; }
   });
-
+  
   actions.push({
     icon: svgIcon('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
     text: 'Zmień nazwę',

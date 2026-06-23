@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, g
 from models import FileRecord, Folder
 from .decorators import login_required
 
-api_bp = Blueprint("api", __name__, url_prefix="/api")
+api_bp = Blueprint("api", __name__)
 
 
 @api_bp.route("/files")

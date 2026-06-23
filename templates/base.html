@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  {#
+    Szablony URL generowane przez url_for — JS podmienia __ID__ na właściwe ID pliku.
+    Dzięki temu prefix subpath (/filevault, itp.) jest zawsze poprawny,
+    bez żadnego hardcodowania w JavaScript.
+  #}
+<script>
+    window._urls = {
+      filePreview:   "{{ url_for('files.preview_file',   file_id=999999999) }}".replace('999999999', '__ID__'),
+      fileDownload:  "{{ url_for('files.download_own',   file_id=999999999) }}".replace('999999999', '__ID__'),
+      fileThumbnail: "{{ url_for('files.thumbnail',      file_id=999999999) }}".replace('999999999', '__ID__'),
+    };
+    function fileUrl(key, id) {
+      return window._urls[key].replace('__ID__', id);
+    }
+  </script>
+
 </head>
 <body>
   {% if session.user_id %}
@@ -22,6 +38,16 @@
       FileVault
     </a>
     <div class="nav-links">
+      <a href="{{ url_for('rooms.rooms_list') }}" class="nav-link
+        {% if request.blueprint == 'rooms' %}nav-link--active{% endif %}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Pokoje
+      </a>
       {% if g.user and g.user.is_admin %}
         <a href="{{ url_for('admin.admin_panel') }}" class="nav-link">Admin</a>
       {% endif %}
@@ -51,7 +77,6 @@
       <a href="{{ url_for('privacy') }}" class="footer-link">Polityka prywatności</a>
     </div>
   </footer>
-  {% block extra_js %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_hex(32))
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", "postgresql://filetransfer:filetransfer@localhost/filetransfer"
+        "DATABASE_URL", "postgresql://filetransfer:filetransfer@192.168.1.150:5432/filetransfer"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "uploads")
@@ -17,7 +17,7 @@ class Config:
         os.path.join(os.environ.get("UPLOAD_FOLDER", "uploads"), "_thumbs"),
     )
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
-    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
 
