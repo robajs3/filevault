@@ -51,7 +51,13 @@
       {% if g.user and g.user.is_admin %}
         <a href="{{ url_for('admin.admin_panel') }}" class="nav-link">Admin</a>
       {% endif %}
-      <span class="nav-user">{{ g.user.username if g.user else '' }}</span>
+      <a href="{{ url_for('profile.profile_view') }}" class="nav-user nav-user--link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        {{ g.user.username if g.user else '' }}
+      </a>
       <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm">Wyloguj</a>
     </div>
   </nav>

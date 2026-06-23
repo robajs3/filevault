@@ -5,7 +5,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
 from models import db
-from controllers import auth_bp, files_bp, folders_bp, share_bp, admin_bp, api_bp, rooms_bp
+from controllers import auth_bp, files_bp, folders_bp, share_bp, admin_bp, api_bp, rooms_bp, profile_bp
 
 PREFIX = "/filevault"
 
@@ -35,7 +35,8 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(share_bp,   url_prefix=PREFIX)
     app.register_blueprint(admin_bp,   url_prefix=PREFIX + "/admin")
     app.register_blueprint(api_bp,     url_prefix=PREFIX + "/api")
-    app.register_blueprint(rooms_bp, url_prefix=PREFIX)
+    app.register_blueprint(rooms_bp,   url_prefix=PREFIX)
+    app.register_blueprint(profile_bp, url_prefix=PREFIX)
 
     # Redirect z / na /filevault/
     @app.route("/")
