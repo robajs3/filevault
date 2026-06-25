@@ -37,7 +37,6 @@
       </div>
     </div>
 
-    <!-- Pasek miejsca -->
     <div class="storage-bar-wrap">
       <div class="storage-bar-labels">
         <span>Miejsce na dysku</span>
@@ -107,6 +106,75 @@
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%">Zmien e-mail</button>
     </form>
+  </div>
+
+  <!-- ── Karta: API Token ── -->
+  <div class="profile-card">
+    <h2 class="profile-card__title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+      Token API
+    </h2>
+
+    <p class="form-hint" style="margin-bottom:16px">
+      Token pozwala aplikacji Koloseum łączyć się z Twoim kontem FileVault bez hasła.
+      Trzymaj go w tajemnicy — dostęp do tokenu = dostęp do Twoich plików.
+    </p>
+
+    {% if user.api_token %}
+    <!-- Token istnieje — pokaż go -->
+    <div style="margin-bottom:16px">
+      <label style="font-size:.8rem;color:var(--text-muted);margin-bottom:6px;display:block">Twój aktualny token</label>
+      <div class="token-box">
+        <code id="apiTokenValue" class="token-value">{{ user.api_token }}</code>
+        <button type="button" class="btn-copy" onclick="copyToken()" title="Kopiuj">
+          <svg id="copyIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+        </button>
+      </div>
+      <span id="copyFeedback" style="font-size:.75rem;color:#22c55e;display:none;margin-top:4px">✓ Skopiowano!</span>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <form method="POST" action="/filevault/api/token/generate">
+        <button type="submit" class="btn btn-secondary" style="font-size:.82rem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Wygeneruj nowy
+        </button>
+      </form>
+      <form method="POST" action="/filevault/api/token/revoke"
+            onsubmit="return confirm('Na pewno unieważnić token? Koloseum straci dostęp.')">
+        <button type="submit" class="btn btn-danger" style="font-size:.82rem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+          Unieważnij
+        </button>
+      </form>
+    </div>
+
+    {% else %}
+    <!-- Brak tokenu -->
+    <div class="token-empty">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:10px">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">Nie masz jeszcze tokenu API.</p>
+      <form method="POST" action="/filevault/api/token/generate">
+        <button type="submit" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Wygeneruj token
+        </button>
+      </form>
+    </div>
+    {% endif %}
   </div>
 
 </div>
@@ -180,7 +248,29 @@
 }
 .form-hint { font-size: .76rem; color: var(--text-muted); margin-top: 3px; display: block; }
 
-/* Navbar link */
+/* Token box */
+.token-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+}
+.token-value {
+  flex: 1; font-family: monospace; font-size: .78rem;
+  color: var(--accent); word-break: break-all;
+  user-select: all;
+}
+.btn-copy {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 2px;
+  transition: color .2s;
+}
+.btn-copy:hover { color: var(--accent); }
+
+.token-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 0 8px;
+}
+
 .nav-user--link {
   text-decoration: none !important;
   color: var(--text-muted) !important;
@@ -192,6 +282,15 @@
 </style>
 
 <script>
+function copyToken() {
+  const val = document.getElementById('apiTokenValue').textContent.trim();
+  navigator.clipboard.writeText(val).then(() => {
+    const fb = document.getElementById('copyFeedback');
+    fb.style.display = 'block';
+    setTimeout(() => fb.style.display = 'none', 2000);
+  });
+}
+
 function checkPwStrength(val) {
   const fill = document.getElementById('pwStrengthFill');
   const label = document.getElementById('pwStrengthLabel');

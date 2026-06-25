@@ -386,3 +386,28 @@ def upload_to_room(room_id):
     if folder_id:
         return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder_id))
     return redirect(url_for("rooms.room_view", room_id=room_id))
+
+# ── Pobierz plik z pokoju (dla wszystkich członków) ──────────────────────────
+
+@rooms_bp.route("/rooms/<int:room_id>/files/<int:room_file_id>/download")
+@login_required
+def download_room_file(room_id, room_file_id):
+    import os
+    from flask import send_file
+    from services.file_service import FileService
+
+    room = Room.query.get_or_404(room_id)
+    membership = RoomService.get_membership(room, g.user)
+    if not membership:
+        abort(403)
+
+    room_file = RoomFile.query.filter_by(id=room_file_id, room_id=room_id).first_or_404()
+    record = room_file.file_record
+    if not record:
+        abort(404)
+
+    path = FileService.physical_path(record)
+    if not os.path.exists(path):
+        abort(404)
+
+    return send_file(path, download_name=record.original_name, as_attachment=True)

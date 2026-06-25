@@ -1,6 +1,7 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from .db import db
+import secrets
 
 
 class User(db.Model):
@@ -27,6 +28,14 @@ class User(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+
+    def generate_api_token(self):
+        self.api_token = secrets.token_hex(32)
+        return self.api_token
+
+    def revoke_api_token(self):
+        self.api_token = None
 
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
