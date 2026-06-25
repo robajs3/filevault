@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel nawigacyjny</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0F0F14;
+      --surface: #17171f;
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.16);
+      --text-primary: #f0f0f4;
+      --text-secondary: #9191a0;
+      --text-muted: #5a5a6a;
+      --blue: #378ADD;
+      --blue-light: #B5D4F4;
+      --blue-bg: rgba(55, 138, 221, 0.1);
+      --coral: #D85A30;
+      --coral-light: #F5C4B3;
+      --coral-bg: rgba(216, 90, 48, 0.1);
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(24px, 5vw, 36px);
+      font-weight: 500;
+      color: var(--text-primary);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.25rem 1.25rem;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+    }
+
+    .card:active {
+      transform: translateY(0) scale(0.99);
+    }
+
+    .card-accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .card-vault .card-accent  { background: var(--blue); }
+    .card-koloseum .card-accent { background: var(--coral); }
+
+    .card-vault:hover    { box-shadow: 0 8px 32px rgba(55, 138, 221, 0.12); }
+    .card-koloseum:hover { box-shadow: 0 8px 32px rgba(216, 90, 48, 0.12); }
+
+    .icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-vault    .icon-wrap { background: var(--blue-bg); }
+    .card-koloseum .icon-wrap { background: var(--coral-bg); }
+
+    .icon-wrap svg { width: 22px; height: 22px; }
+
+    .card-vault    .icon-wrap svg { stroke: var(--blue-light); }
+    .card-koloseum .icon-wrap svg { stroke: var(--coral-light); }
+
+    .card-name {
+      font-size: 17px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .card-cta {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    .card-vault    .card-cta { color: var(--blue); }
+    .card-koloseum .card-cta { color: var(--coral); }
+
+    .card-cta svg { width: 14px; height: 14px; transition: transform 0.15s; }
+    .card:hover .card-cta svg { transform: translateX(3px); }
+
+    .footer {
+      margin-top: 2rem;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <p class="eyebrow">Panel nawigacyjny</p>
+  <h1>Wybierz aplikację</h1>
+  <p class="subtitle">Gdzie chcesz przejść?</p>
+
+  <div class="grid">
+
+    <a href="/filevault" class="card card-vault">
+      <div class="card-accent"></div>
+      <div class="icon-wrap" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6" width="18" height="15" rx="2"/>
+          <path d="M3 10h18"/>
+          <circle cx="12" cy="15" r="2"/>
+          <path d="M12 13v-1M12 17v1M10.27 14l-.87-.5M13.6 16.5l.87.5M10.27 16l-.87.5M13.6 13.5l.87-.5"/>
+        </svg>
+      </div>
+      <p class="card-name">FileVault</p>
+      <p class="card-desc">Zarządzanie i przechowywanie plików</p>
+      <div class="card-cta">
+        Otwórz
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+      </div>
+    </a>
+
+    <a href="http://127.0.0.1:5001/koloseum" class="card card-koloseum">
+      <div class="card-accent"></div>
+      <div class="icon-wrap" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18V9a9 9 0 1 1 18 0v9"/>
+          <path d="M3 18h18"/>
+          <path d="M7 18v-5M11 18V9M17 18v-5"/>
+        </svg>
+      </div>
+      <p class="card-name">Koloseum</p>
+      <p class="card-desc">aplikacja do zarządzania terminami</p>
+      <div class="card-cta">
+        Otwórz
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+      </div>
+    </a>
+
+  </div>
+
+  <p class="footer">Kliknij kartę, by przejść do wybranej aplikacji</p>
+
+</body>
+</html>

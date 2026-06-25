@@ -47,10 +47,9 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(rooms_bp,   url_prefix=PREFIX)
     app.register_blueprint(profile_bp, url_prefix=PREFIX)
 
-    # Redirect z / na /filevault/
     @app.route("/")
     def index():
-        return redirect(PREFIX + "/")
+        return render_template("launcher.html")
 
     # Misc routes
     @app.route(PREFIX + "/privacy")
