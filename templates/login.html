@@ -23,6 +23,12 @@
         <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
       </div>
       <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
+      <div class="form-group remember-me">
+        <label class="checkbox-label">
+          <input type="checkbox" name="remember" id="remember">
+          <span>Zapamiętaj mnie</span>
+        </label>
+      </div>
     </form>
     <div class="auth-footer">
       Nie masz konta? <a href="{{ url_for('auth.register') }}">Zarejestruj się</a>

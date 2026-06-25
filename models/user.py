@@ -29,6 +29,14 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
     api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    remember_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+
+    def generate_remember_token(self) -> str:
+        self.remember_token = secrets.token_hex(32)
+        return self.remember_token
+
+    def revoke_remember_token(self) -> None:
+        self.remember_token = None
 
     def generate_api_token(self):
         self.api_token = secrets.token_hex(32)
