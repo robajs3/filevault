@@ -1,11 +1,38 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, g
 from models import FileRecord, Folder, db
+from models.room import RoomFile, RoomMembership
 from services import FileService
 from .decorators import login_required
 from models.file_record import PREVIEW_MIME_MAP
 
 files_bp = Blueprint("files", __name__)
+
+
+def _get_file_with_access(file_id: int) -> FileRecord:
+    """
+    Zwraca FileRecord jeśli g.user jest właścicielem pliku
+    LUB jest członkiem rooma, do którego plik został dodany.
+    W przeciwnym razie abort(404).
+    """
+    record = FileRecord.query.get_or_404(file_id)
+
+    # Właściciel pliku — pełny dostęp
+    if record.user_id == g.user.id:
+        return record
+
+    # Sprawdź czy plik jest w jakimkolwiek roomie, do którego user należy
+    room_entry = (
+        RoomFile.query
+        .filter_by(file_record_id=file_id)
+        .join(RoomMembership, RoomMembership.room_id == RoomFile.room_id)
+        .filter(RoomMembership.user_id == g.user.id)
+        .first()
+    )
+    if room_entry:
+        return record
+
+    abort(404)
 
 
 @files_bp.route("/")
@@ -51,7 +78,7 @@ def upload():
 @files_bp.route("/file/<int:file_id>/download")
 @login_required
 def download_own(file_id):
-    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    record = _get_file_with_access(file_id)
     path = FileService.physical_path(record)
     if not os.path.exists(path):
         abort(404)
@@ -61,7 +88,7 @@ def download_own(file_id):
 @files_bp.route("/file/<int:file_id>/thumbnail")
 @login_required
 def thumbnail(file_id):
-    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    record = _get_file_with_access(file_id)
     if not record.has_thumbnail:
         abort(404)
     path = FileService.thumbnail_path(record)
@@ -73,7 +100,7 @@ def thumbnail(file_id):
 @files_bp.route("/file/<int:file_id>/preview")
 @login_required
 def preview_file(file_id):
-    record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
+    record = _get_file_with_access(file_id)
     if not record.is_previewable:
         abort(404)
     path = FileService.physical_path(record)
@@ -86,6 +113,7 @@ def preview_file(file_id):
 @files_bp.route("/file/<int:file_id>/delete", methods=["POST"])
 @login_required
 def delete_file(file_id):
+    # Tylko właściciel może usunąć plik
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
     folder_id = record.folder_id
     FileService.delete(record)
@@ -98,6 +126,7 @@ def delete_file(file_id):
 @files_bp.route("/file/<int:file_id>/rename", methods=["POST"])
 @login_required
 def rename_file(file_id):
+    # Tylko właściciel może zmieniać nazwę
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
     ok, error = FileService.rename(record, request.form.get("name", "").strip())
     flash(error if error else "Nazwa pliku została zmieniona.", "danger" if error else "success")
@@ -109,6 +138,7 @@ def rename_file(file_id):
 @files_bp.route("/file/<int:file_id>/move", methods=["POST"])
 @login_required
 def move_file(file_id):
+    # Tylko właściciel może przenosić plik
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
     target_id = request.form.get("folder_id", "").strip()
 
@@ -132,6 +162,7 @@ def move_file(file_id):
 @files_bp.route("/file/<int:file_id>/share", methods=["POST"])
 @login_required
 def share_file(file_id):
+    # Tylko właściciel może tworzyć linki share
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
     FileService.create_share(
         record,
@@ -148,6 +179,7 @@ def share_file(file_id):
 @files_bp.route("/file/<int:file_id>/unshare", methods=["POST"])
 @login_required
 def unshare_file(file_id):
+    # Tylko właściciel może cofnąć share
     record = FileRecord.query.filter_by(id=file_id, user_id=g.user.id).first_or_404()
     folder_id = record.folder_id
     FileService.revoke_share(record)

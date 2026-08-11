@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ folder.name }} — FileVault{% endblock %}
+{% block content %}
+
+<style>
+  .shared-folder-wrap {
+    max-width: 700px;
+    margin: 2.5rem auto;
+    padding: 0 1rem;
+  }
+  .shared-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .shared-folder-icon {
+    flex-shrink: 0;
+    width: 52px; height: 52px;
+    background: rgba(99,102,241,.12);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent);
+  }
+  .shared-folder-title { font-size: 1.4rem; font-weight: 700; }
+  .shared-folder-meta  { font-size: .85rem; color: var(--text-muted); margin-top: .2rem; }
+
+  .shared-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+  }
+  .shared-file-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    transition: background .15s;
+  }
+  .shared-file-row:hover { background: var(--bg-3); }
+  .shared-file-checkbox { flex-shrink: 0; width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent); }
+  .shared-file-info { flex: 1; min-width: 0; }
+  .shared-file-name  { font-size: .9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shared-file-size  { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+  .shared-file-ext   {
+    flex-shrink: 0;
+    font-size: .7rem; font-weight: 600; text-transform: uppercase;
+    background: var(--bg-3); color: var(--text-muted);
+    border-radius: 5px; padding: .2rem .45rem;
+  }
+
+  .shared-actions {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .select-all-wrap {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .85rem; color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .empty-folder {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+  }
+  .empty-folder svg { margin-bottom: .75rem; opacity: .35; }
+</style>
+
+<div class="shared-folder-wrap">
+  <div class="shared-folder-header">
+    <div class="shared-folder-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="shared-folder-title">{{ folder.name }}</div>
+      <div class="shared-folder-meta">
+        {{ files|length }} plik{{ 'ów' if files|length != 1 else '' }}
+        &nbsp;·&nbsp; Udostępniony folder
+      </div>
+    </div>
+  </div>
+
+  {% if files %}
+  <form method="POST" action="{{ url_for('share.shared_folder_download', token=token) }}" id="dlForm">
+    <div class="shared-files-list" id="fileList">
+      {% for file in files %}
+      <label class="shared-file-row">
+        <input class="shared-file-checkbox file-cb" type="checkbox" name="file_ids" value="{{ file.id }}" checked>
+        <div class="shared-file-info">
+          <div class="shared-file-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+          <div class="shared-file-size">{{ file.size_human }}</div>
+        </div>
+        <span class="shared-file-ext">{{ file.extension or '?' }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="shared-actions">
+      <label class="select-all-wrap">
+        <input type="checkbox" id="selectAll" checked style="width:15px;height:15px;accent-color:var(--accent)">
+        Zaznacz wszystkie
+      </label>
+      <div style="flex:1"></div>
+      <button type="submit" class="btn btn-primary" id="dlBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Pobierz zaznaczone jako ZIP
+      </button>
+    </div>
+  </form>
+
+  <script>
+    const allCbs    = document.querySelectorAll('.file-cb');
+    const selectAll = document.getElementById('selectAll');
+    const dlBtn     = document.getElementById('dlBtn');
+
+    function updateBtn() {
+      const checked = document.querySelectorAll('.file-cb:checked').length;
+      const total   = allCbs.length;
+      selectAll.indeterminate = checked > 0 && checked < total;
+      selectAll.checked = checked === total;
+      dlBtn.disabled = checked === 0;
+      dlBtn.textContent = checked === total
+        ? `Pobierz wszystkie (${total}) jako ZIP`
+        : `Pobierz zaznaczone (${checked}) jako ZIP`;
+      // Re-prepend icon (textContent strips it)
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('width','15'); icon.setAttribute('height','15');
+      icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('fill','none');
+      icon.setAttribute('stroke','currentColor'); icon.setAttribute('stroke-width','2');
+      icon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+      dlBtn.prepend(icon);
+    }
+
+    allCbs.forEach(cb => cb.addEventListener('change', updateBtn));
+    selectAll.addEventListener('change', () => {
+      allCbs.forEach(cb => cb.checked = selectAll.checked);
+      updateBtn();
+    });
+    updateBtn();
+  </script>
+
+  {% else %}
+  <div class="empty-folder">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    <p>Ten folder jest pusty.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

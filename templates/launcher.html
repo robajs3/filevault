@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel nawigacyjny</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0F0F14;
+      --surface: #17171f;
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.16);
+      --text-primary: #f0f0f4;
+      --text-secondary: #9191a0;
+      --text-muted: #5a5a6a;
+      --blue: #378ADD;    --blue-light: #B5D4F4;    --blue-bg: rgba(55, 138, 221, 0.1);
+      --coral: #D85A30;   --coral-light: #F5C4B3;   --coral-bg: rgba(216, 90, 48, 0.1);
+      --green: #3FAE68;   --green-light: #B9E8CB;   --green-bg: rgba(63, 174, 104, 0.1);
+      --purple: #8A6FD8;  --purple-light: #D6CCF5;  --purple-bg: rgba(138, 111, 216, 0.1);
+      --pink: #D85A9C;    --pink-light: #F5C4E1;    --pink-bg: rgba(216, 90, 156, 0.1);
+      --teal: #2FA6A0;    --teal-light: #A9E5E1;    --teal-bg: rgba(47, 166, 160, 0.1);
+      --indigo: #6472E0;  --indigo-light: #C7CDF7;  --indigo-bg: rgba(100, 114, 224, 0.1);
+      --gray: #8b8b98;    --gray-light: #d4d4dc;    --gray-bg: rgba(139, 139, 152, 0.1);
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(24px, 5vw, 36px);
+      font-weight: 500;
+      color: var(--text-primary);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 760px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.25rem 1.25rem;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+    .card:active { transform: translateY(0) scale(0.99); }
+
+    .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+
+    /* Kolory sterowane atrybutem data-color - dzięki temu każda aplikacja
+       dodana z panelu admina (dowolny slug) automatycznie dostaje spójny
+       motyw kolorystyczny, bez dopisywania CSS dla każdej z osobna. */
+    .card[data-color="blue"] .card-accent { background: var(--blue); }
+    .card[data-color="blue"] .icon-wrap { background: var(--blue-bg); }
+    .card[data-color="blue"] .icon-wrap svg { stroke: var(--blue-light); }
+    .card[data-color="blue"] .card-cta { color: var(--blue); }
+    .card[data-color="blue"]:hover { box-shadow: 0 8px 32px var(--blue-bg); }
+
+    .card[data-color="coral"] .card-accent { background: var(--coral); }
+    .card[data-color="coral"] .icon-wrap { background: var(--coral-bg); }
+    .card[data-color="coral"] .icon-wrap svg { stroke: var(--coral-light); }
+    .card[data-color="coral"] .card-cta { color: var(--coral); }
+    .card[data-color="coral"]:hover { box-shadow: 0 8px 32px var(--coral-bg); }
+
+    .card[data-color="green"] .card-accent { background: var(--green); }
+    .card[data-color="green"] .icon-wrap { background: var(--green-bg); }
+    .card[data-color="green"] .icon-wrap svg { stroke: var(--green-light); }
+    .card[data-color="green"] .card-cta { color: var(--green); }
+    .card[data-color="green"]:hover { box-shadow: 0 8px 32px var(--green-bg); }
+
+    .card[data-color="purple"] .card-accent { background: var(--purple); }
+    .card[data-color="purple"] .icon-wrap { background: var(--purple-bg); }
+    .card[data-color="purple"] .icon-wrap svg { stroke: var(--purple-light); }
+    .card[data-color="purple"] .card-cta { color: var(--purple); }
+    .card[data-color="purple"]:hover { box-shadow: 0 8px 32px var(--purple-bg); }
+
+    .card[data-color="pink"] .card-accent { background: var(--pink); }
+    .card[data-color="pink"] .icon-wrap { background: var(--pink-bg); }
+    .card[data-color="pink"] .icon-wrap svg { stroke: var(--pink-light); }
+    .card[data-color="pink"] .card-cta { color: var(--pink); }
+    .card[data-color="pink"]:hover { box-shadow: 0 8px 32px var(--pink-bg); }
+
+    .card[data-color="teal"] .card-accent { background: var(--teal); }
+    .card[data-color="teal"] .icon-wrap { background: var(--teal-bg); }
+    .card[data-color="teal"] .icon-wrap svg { stroke: var(--teal-light); }
+    .card[data-color="teal"] .card-cta { color: var(--teal); }
+    .card[data-color="teal"]:hover { box-shadow: 0 8px 32px var(--teal-bg); }
+
+    .card[data-color="indigo"] .card-accent { background: var(--indigo); }
+    .card[data-color="indigo"] .icon-wrap { background: var(--indigo-bg); }
+    .card[data-color="indigo"] .icon-wrap svg { stroke: var(--indigo-light); }
+    .card[data-color="indigo"] .card-cta { color: var(--indigo); }
+    .card[data-color="indigo"]:hover { box-shadow: 0 8px 32px var(--indigo-bg); }
+
+    .card[data-color="gray"] .card-accent { background: var(--gray); }
+    .card[data-color="gray"] .icon-wrap { background: var(--gray-bg); }
+    .card[data-color="gray"] .icon-wrap svg { stroke: var(--gray-light); }
+    .card[data-color="gray"] .card-cta { color: var(--gray); }
+    .card[data-color="gray"]:hover { box-shadow: 0 8px 32px var(--gray-bg); }
+
+    /* Karty nieaktywne (w konserwacji / wkrótce) */
+    .card-disabled { cursor: default; opacity: 0.55; filter: grayscale(0.35); }
+    .card-disabled:hover { transform: none; border-color: var(--border); box-shadow: none; }
+    .card-disabled .card-cta { color: var(--text-muted); }
+
+    .badge-soon {
+      position: absolute; top: 12px; right: 12px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-secondary); background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px;
+    }
+
+    .icon-wrap {
+      width: 44px; height: 44px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-wrap svg { width: 22px; height: 22px; }
+
+    .card-name { font-size: 17px; font-weight: 500; color: var(--text-primary); }
+    .card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .card-cta { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; margin-top: 6px; }
+    .card-cta svg { width: 14px; height: 14px; transition: transform 0.15s; }
+    .card:hover .card-cta svg { transform: translateX(3px); }
+
+    .footer { margin-top: 2rem; font-size: 12px; color: var(--text-muted); }
+    .footer a { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <p class="eyebrow">Panel nawigacyjny</p>
+  <h1>Wybierz aplikację</h1>
+  <p class="subtitle">Gdzie chcesz przejść?</p>
+
+  <div class="grid">
+    {% for app in apps %}
+      {% set is_active = not app.is_maintenance and app.url %}
+      {% if is_active %}<a href="{{ app.url }}" class="card" data-color="{{ app.color }}">
+      {% else %}<div class="card card-disabled" data-color="{{ app.color }}" aria-disabled="true">
+      {% endif %}
+
+        <div class="card-accent"></div>
+        {% if app.is_maintenance %}<span class="badge-soon">W konserwacji</span>{% endif %}
+
+        <div class="icon-wrap" aria-hidden="true">
+          {% if app.icon == 'vault' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10h18"/>
+              <circle cx="12" cy="15" r="2"/><path d="M12 13v-1M12 17v1M10.27 14l-.87-.5M13.6 16.5l.87.5M10.27 16l-.87.5M13.6 13.5l.87-.5"/>
+            </svg>
+          {% elif app.icon == 'calendar' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 18V9a9 9 0 1 1 18 0v9"/><path d="M3 18h18"/><path d="M7 18v-5M11 18V9M17 18v-5"/>
+            </svg>
+          {% elif app.icon == 'gameplan' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 13l2.5 2 4.5-4.5"/>
+            </svg>
+          {% elif app.icon == 'book' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          {% elif app.icon == 'server' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>
+              <circle cx="7" cy="7" r="0.6" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="0.6" fill="currentColor" stroke="none"/>
+            </svg>
+          {% elif app.icon == 'film' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M7 5v14M17 5v14"/><path d="M2.5 9h4.5M2.5 15h4.5M17 9h4.5M17 15h4.5"/>
+            </svg>
+          {% elif app.icon == 'planner' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/><path d="M7.5 13h3M7.5 17h3M13.5 13h3M13.5 17h3"/>
+            </svg>
+          {% else %}
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          {% endif %}
+        </div>
+
+        <p class="card-name">{{ app.name }}</p>
+        <p class="card-desc">{{ app.description or "" }}</p>
+
+        <div class="card-cta">
+          {% if is_active %}
+            Otwórz
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          {% else %}
+            Niedostępne
+          {% endif %}
+        </div>
+
+      {% if is_active %}</a>{% else %}</div>{% endif %}
+    {% else %}
+      <p class="subtitle">Brak skonfigurowanych aplikacji.</p>
+    {% endfor %}
+  </div>
+
+  <p class="footer">Kliknij kartę, by przejść do wybranej aplikacji</p>
+
+</body>
+</html>

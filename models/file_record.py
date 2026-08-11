@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import url_for
 from .db import db
 
+PREVIEWABLE_AUDIO_EXTENSIONS = {"mp3", "wav"}
 PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}
 PREVIEWABLE_VIDEO_EXTENSIONS = {"mp4", "webm", "ogg", "mov"}
 PREVIEWABLE_PDF_EXTENSIONS = {"pdf"}
@@ -10,8 +11,8 @@ PREVIEW_MIME_MAP = {
     "gif": "image/gif", "webp": "image/webp", "bmp": "image/bmp",
     "svg": "image/svg+xml", "mp4": "video/mp4", "webm": "video/webm",
     "ogg": "video/ogg", "mov": "video/quicktime", "pdf": "application/pdf",
+    "mp3": "audio/mpeg", "wav": "audio/wav",
 }
-
 
 class FileRecord(db.Model):
     __tablename__ = "files"
@@ -75,6 +76,8 @@ class FileRecord(db.Model):
             return "video"
         if ext in PREVIEWABLE_PDF_EXTENSIONS:
             return "pdf"
+        if ext in PREVIEWABLE_AUDIO_EXTENSIONS:
+            return "audio"
         return None
 
     @property

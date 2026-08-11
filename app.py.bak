@@ -4,7 +4,7 @@ from flask import Flask, render_template, redirect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
-from models import db, AppLink
+from models import db
 from controllers import auth_bp, files_bp, folders_bp, share_bp, admin_bp, api_bp, rooms_bp, profile_bp
 
 PREFIX = "/filevault"
@@ -49,8 +49,7 @@ def create_app(config_class=Config) -> Flask:
 
     @app.route("/")
     def index():
-        apps = AppLink.query.filter_by(is_enabled=True).order_by(AppLink.sort_order, AppLink.name).all()
-        return render_template("launcher.html", apps=apps)
+        return render_template("launcher.html")
 
     # Misc routes
     @app.route(PREFIX + "/privacy")

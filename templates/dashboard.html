@@ -23,6 +23,18 @@
     <p class="text-muted">{{ folders|length }} folder(ów) · {{ files|length }} plik(ów) · {{ user.used_storage_mb }} / {{ user.storage_limit_mb }} MB</p>
   </div>
   <div class="header-actions">
+    <button class="btn btn-outline" onclick="openSharedLinksModal()" title="Moje udostępnienia" id="sharedLinksBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      Udostępnienia
+      {%- set active_shares_count = (files | selectattr('is_share_active') | list | length) + (folders | selectattr('is_share_active') | list | length) -%}
+      {% if active_shares_count > 0 %}
+      <span class="share-count-badge">{{ active_shares_count }}</span>
+      {% endif %}
+    </button>
     <button class="btn btn-outline" onclick="document.getElementById('newFolderModal').showModal()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -80,29 +92,72 @@
       </div>
     </a>
     <div class="folder-actions">
-      <button class="btn btn-sm btn-ghost" title="Zmień nazwę"
-              onclick="openRenameFolder({{ folder.id }}, '{{ folder.name|replace("'","\\'")|replace('"','\\"') }}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-      </button>
-      <button class="btn btn-sm btn-ghost" title="Przenieś folder"
-              onclick="openMoveFolder({{ folder.id }}, '{{ folder.name|replace("'","\\'")|replace('"','\\"') }}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/>
-          <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
-        </svg>
-      </button>
-      <form method="POST" action="{{ url_for('folders.delete_folder', folder_id=folder.id) }}"
-            onsubmit="return confirm('Usunac folder {{ folder.name }} i cala zawartosc?')" style="display:inline">
-        <button type="submit" class="btn btn-sm btn-danger" title="Usuń folder">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+      <div class="folder-menu-wrap">
+        {% if folder.is_share_active %}
+        <span class="folder-shared-dot" title="Folder udostępniony"></span>
+        {% endif %}
+        <button class="btn btn-sm btn-ghost folder-menu-btn"
+                onclick="toggleFolderMenu(this)"
+                data-dropdown="folderDropdown{{ folder.id }}"
+                title="Opcje folderu"
+                aria-haspopup="true" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <circle cx="12" cy="5"  r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
           </svg>
         </button>
-      </form>
+        <div class="folder-dropdown" id="folderDropdown{{ folder.id }}" role="menu">
+          <button class="fdrop-item" onclick="closeFolderMenus(); openRenameFolder({{ folder.id }}, '{{ folder.name|replace("'","\\'")|replace('"','\\"') }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Zmień nazwę
+          </button>
+          <button class="fdrop-item" onclick="closeFolderMenus(); openMoveFolder({{ folder.id }}, '{{ folder.name|replace("'","\\'")|replace('"','\\"') }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/>
+              <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
+            </svg>
+            Przenieś
+          </button>
+          <button class="fdrop-item" onclick="closeFolderMenus(); openShareFolder({{ folder.id }}, '{{ folder.name|replace("'","\\'")|replace('"','\\"') }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Udostępnij
+          </button>
+          {% if folder.is_share_active %}
+          <button class="fdrop-item" onclick="closeFolderMenus(); copyLink('{{ folder.share_url }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Kopiuj link
+          </button>
+          <form method="POST" action="{{ url_for('folders.unshare_folder', folder_id=folder.id) }}">
+            <button type="submit" class="fdrop-item" onclick="closeFolderMenus()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="1" y1="1" x2="23" y2="23"/>
+                <path d="M20.88 20.88A3 3 0 0 1 18 22a3 3 0 0 1-3-3M6 12a3 3 0 0 0-3 3 3 3 0 0 0 3 3"/>
+              </svg>
+              Wyłącz udostępnianie
+            </button>
+          </form>
+          {% endif %}
+          <div class="fdrop-divider"></div>
+          <form method="POST" action="{{ url_for('folders.delete_folder', folder_id=folder.id) }}"
+                onsubmit="return confirm('Usunąć folder „{{ folder.name }}” i całą zawartość?')">
+            <button type="submit" class="fdrop-item fdrop-danger" onclick="closeFolderMenus()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Usuń folder
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
   {% endfor %}
@@ -119,7 +174,9 @@
        data-id="{{ file.id }}"
        data-label="{{ file.original_name|replace("'","\\'")|replace('"','\\"') }}"
        data-previewable="{{ 'true' if file.is_previewable else 'false' }}"
-       data-preview-type="{{ file.preview_type or '' }}">
+       data-preview-type="{{ file.preview_type or '' }}"
+       draggable="true"
+       title="Przeciągnij plik na folder, aby go przenieść">
     {% if file.is_previewable %}
     <a href="javascript:void(0)" class="file-thumb-link"
        onclick="openPreview({{ file.id }}, '{{ file.original_name|replace("'","\\'")|replace('"','\\"') }}', '{{ file.preview_type }}')"
@@ -245,10 +302,10 @@
 <dialog id="uploadModal" class="modal">
   <div class="modal-header">
     <h2>Wgraj pliki</h2>
-    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+    <button class="modal-close" id="uploadModalClose" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    <form method="POST" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
+    <form id="uploadForm" enctype="multipart/form-data" data-upload-url="{{ url_for('files.upload') }}">
       {% if current_folder %}<input type="hidden" name="folder_id" value="{{ current_folder.id }}">{% endif %}
       <div class="drop-zone" id="dropZone">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -271,11 +328,70 @@
       {% endif %}
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
-        <button type="submit" class="btn btn-primary">Wgraj</button>
+        <button type="button" class="btn btn-primary" id="uploadSubmitBtn" onclick="startUpload()">Wgraj</button>
       </div>
     </form>
   </div>
 </dialog>
+
+<!-- Nakładka z kółkiem postępu -->
+<div id="uploadOverlay" style="display:none">
+  <div id="uploadProgressBox">
+    <svg id="uploadCircleSvg" viewBox="0 0 120 120" width="120" height="120">
+      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
+      <circle id="uploadProgressCircle" cx="60" cy="60" r="52" fill="none"
+              stroke="var(--accent)" stroke-width="10"
+              stroke-linecap="round"
+              stroke-dasharray="326.7"
+              stroke-dashoffset="326.7"
+              transform="rotate(-90 60 60)"/>
+    </svg>
+    <div id="uploadPercentText">0%</div>
+    <div id="uploadFileName"></div>
+  </div>
+</div>
+
+<style>
+#uploadOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+#uploadProgressBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+#uploadCircleSvg {
+  filter: drop-shadow(0 0 18px rgba(99,102,241,.45));
+}
+#uploadProgressCircle {
+  transition: stroke-dashoffset .15s ease;
+}
+#uploadPercentText {
+  position: absolute;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  /* centered inside svg */
+  margin-top: -146px;
+}
+#uploadFileName {
+  color: rgba(255,255,255,.7);
+  font-size: .85rem;
+  max-width: 260px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
 
 <!-- Nowy folder -->
 <dialog id="newFolderModal" class="modal">
@@ -409,6 +525,7 @@
         <div class="form-group">
           <label>Wygasa po</label>
           <select name="expires_hours">
+            <option value="0">Nigdy nie wygasa</option>
             <option value="1">1 godzina</option>
             <option value="6">6 godzin</option>
             <option value="24" selected>24 godziny</option>
@@ -431,6 +548,166 @@
         <button type="submit" class="btn btn-primary">Generuj link</button>
       </div>
     </form>
+  </div>
+</dialog>
+
+<!-- Modal udostępniania folderu -->
+<dialog id="shareFolderModal" class="modal">
+  <div class="modal-header">
+    <h2>Udostępnij folder</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content">
+    <form method="POST" id="shareFolderForm">
+      <p class="share-filename" id="shareFolderFilename"></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Wygasa po</label>
+          <select name="expires_hours">
+            <option value="0">Nigdy nie wygasa</option>
+            <option value="1">1 godzina</option>
+            <option value="6">6 godzin</option>
+            <option value="24" selected>24 godziny</option>
+            <option value="72">3 dni</option>
+            <option value="168">7 dni</option>
+            <option value="720">30 dni</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Hasło (opcjonalne)</label>
+        <input type="password" name="share_password" placeholder="Zostaw puste = brak hasła">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Generuj link</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ═══ Modal: Moje udostępnienia ═══ -->
+<dialog id="sharedLinksModal" class="modal shared-links-modal">
+  <div class="modal-header">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      Moje udostępnienia
+    </h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content" style="padding:0">
+
+    {%- set shared_files  = files  | selectattr('is_share_active') | list -%}
+    {%- set shared_folders = folders | selectattr('is_share_active') | list -%}
+
+    {% if not shared_files and not shared_folders %}
+    <div class="sl-empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      <p>Brak aktywnych udostępnień</p>
+    </div>
+    {% else %}
+
+    {%- if shared_files %}
+    <div class="sl-section-label">Pliki ({{ shared_files | length }})</div>
+    {% for file in shared_files %}
+    <div class="sl-row">
+      <div class="sl-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="sl-info">
+        <div class="sl-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+        <div class="sl-meta">
+          {% if file.share_expires_at %}
+          <span class="sl-expires" data-expires="{{ file.share_expires_at.isoformat() }}">
+            Wygasa: {{ file.share_expires_at.strftime('%d.%m.%Y %H:%M') }}
+          </span>
+          {% else %}
+          <span class="sl-expires sl-no-expire">Bez wygaśnięcia</span>
+          {% endif %}
+          {% if file.download_limit %}
+          · <span class="sl-downloads">{{ file.download_count }}/{{ file.download_limit }} pobrań</span>
+          {% else %}
+          · <span class="sl-downloads">{{ file.download_count }} pobrań</span>
+          {% endif %}
+          {% if file.share_password_hash %}
+          · <span class="sl-pass-protected">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Chroniony hasłem
+            </span>
+          {% endif %}
+        </div>
+        <div class="sl-url-row">
+          <input class="sl-url-input" readonly value="{{ file.share_url }}" onclick="this.select()">
+          <button class="sl-copy-btn" onclick="copySlLink('{{ file.share_url }}', this)" title="Kopiuj link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {%- endif %}
+
+    {%- if shared_folders %}
+    <div class="sl-section-label">Foldery ({{ shared_folders | length }})</div>
+    {% for folder in shared_folders %}
+    <div class="sl-row">
+      <div class="sl-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sl-info">
+        <div class="sl-name" title="{{ folder.name }}">{{ folder.name }}</div>
+        <div class="sl-meta">
+          {% if folder.share_expires_at %}
+          <span class="sl-expires" data-expires="{{ folder.share_expires_at.isoformat() }}">
+            Wygasa: {{ folder.share_expires_at.strftime('%d.%m.%Y %H:%M') }}
+          </span>
+          {% else %}
+          <span class="sl-expires sl-no-expire">Bez wygaśnięcia</span>
+          {% endif %}
+          {% if folder.share_password_hash %}
+          · <span class="sl-pass-protected">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Chroniony hasłem
+            </span>
+          {% endif %}
+        </div>
+        <div class="sl-url-row">
+          <input class="sl-url-input" readonly value="{{ folder.share_url }}" onclick="this.select()">
+          <button class="sl-copy-btn" onclick="copySlLink('{{ folder.share_url }}', this)" title="Kopiuj link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {%- endif %}
+
+    {% endif %}
   </div>
 </dialog>
 
@@ -467,6 +744,79 @@
 <div id="toast" class="toast"></div>
 
 <style>
+/* ── Badge na przycisku udostępnień ── */
+.share-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff;
+  font-size: .65rem; font-weight: 700; line-height: 1;
+  min-width: 16px; height: 16px; border-radius: 99px;
+  padding: 0 4px; margin-left: 4px;
+}
+
+/* ── Modal udostępnień ── */
+.shared-links-modal { width: 600px; max-width: 96vw; }
+.sl-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 2.5rem 1rem; color: var(--text-muted); font-size: .87rem; text-align: center;
+}
+.sl-section-label {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 10px 20px 4px; border-top: 1px solid var(--border);
+}
+.sl-section-label:first-child { border-top: none; padding-top: 14px; }
+.sl-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 11px 20px; border-bottom: 1px solid var(--border);
+  animation: fadeUp .15s ease both;
+}
+.sl-row:last-child { border-bottom: none; }
+.sl-icon {
+  flex-shrink: 0; margin-top: 2px;
+  color: var(--accent);
+}
+.sl-info { flex: 1; min-width: 0; }
+.sl-name {
+  font-size: .85rem; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text); margin-bottom: 3px;
+}
+.sl-meta {
+  font-size: .74rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.sl-expires { }
+.sl-no-expire { color: var(--text-muted); opacity: .7; }
+.sl-expires[data-expires] { color: #a3e635; }
+.sl-downloads { }
+.sl-pass-protected {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: #facc15;
+}
+.sl-url-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.sl-url-input {
+  flex: 1; min-width: 0;
+  font-size: .73rem; font-family: monospace;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px;
+  color: var(--text-muted); cursor: text;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sl-url-input:focus { outline: none; border-color: var(--accent); color: var(--text); }
+.sl-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 5px 7px; border-radius: 6px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sl-copy-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sl-copy-btn.copied { background: #22c55e; border-color: #22c55e; color: #fff; }
+
 /* ── Wyszukiwarka ── */
 .search-bar-wrap { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .search-bar {
@@ -503,8 +853,7 @@
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
-  transition: border-color var(--transition), box-shadow var(--transition), transform .12s ease;
+  transition: border-color var(--transition), box-shadow var(--transition);
   animation: fadeUp .2s ease both;
   user-select: none;
   -webkit-user-select: none;
@@ -512,7 +861,17 @@
 .folder-card:hover {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(99,102,241,.2), 0 4px 16px rgba(0,0,0,.3);
-  transform: translateY(-1px);
+}
+.folder-card.drag-over {
+  border-color: var(--accent);
+  background: rgba(99,102,241,.12);
+  box-shadow: 0 0 0 2px rgba(99,102,241,.35), 0 4px 16px rgba(0,0,0,.3);
+  transform: scale(1.015);
+}
+.file-card[draggable="true"] { cursor: grab; }
+.file-card.dragging {
+  opacity: .45;
+  cursor: grabbing;
 }
 .folder-link {
   display: flex; align-items: center; gap: 12px;
@@ -529,7 +888,43 @@
   color: var(--text);
 }
 .folder-meta { font-size: .74rem; color: var(--text-muted); margin-top: 2px; }
-.folder-actions { display: flex; gap: 3px; padding: 0 8px; flex-shrink: 0; }
+.folder-actions { display: flex; align-items: center; padding: 0 6px; flex-shrink: 0; }
+.folder-menu-wrap { position: relative; display: flex; align-items: center; gap: 5px; }
+.folder-menu-btn { padding: 4px 5px !important; }
+.folder-shared-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(99,102,241,.25);
+}
+.folder-dropdown {
+  display: none;
+  position: fixed;
+  min-width: 190px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 5px;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  animation: dropIn .12s ease both;
+}
+.folder-dropdown.open { display: block; }
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.fdrop-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 7px 10px;
+  background: none; border: none; border-radius: 6px;
+  font-size: .82rem; font-family: inherit;
+  color: var(--text); cursor: pointer;
+  text-align: left; transition: background .1s;
+}
+.fdrop-item:hover { background: var(--bg-3); }
+.fdrop-danger { color: #f87171; }
+.fdrop-danger:hover { background: rgba(239,68,68,.12); }
+.fdrop-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
 /* ── Ukryte podczas wyszukiwania ── */
 .hidden-by-search { display: none !important; }
@@ -687,6 +1082,7 @@ dialog.mobile-sheet {
 </style>
 
 <script>
+const PREFIX = '{{ url_for("files.dashboard") }}'.split('/').slice(0,-1).join('/');
 // ═══════════════════════════════════════════
 // Wyszukiwarka
 // ═══════════════════════════════════════════
@@ -754,15 +1150,67 @@ function clearSearch() {
 // ═══════════════════════════════════════════
 function openRenameFile(fileId, currentName) {
   document.getElementById('rename_file_name').value = currentName;
-  document.getElementById('renameFileForm').action = `/file/${fileId}/rename`;
+  document.getElementById('renameFileForm').action = `${PREFIX}/file/${fileId}/rename`;
   document.getElementById('renameFileModal').showModal();
 }
 
 function openShare(fileId, filename) {
   document.getElementById('shareFilename').textContent = filename;
-  document.getElementById('shareForm').action = `/file/${fileId}/share`;
+  document.getElementById('shareForm').action = `${PREFIX}/file/${fileId}/share`;
   document.getElementById('shareModal').showModal();
 }
+
+function openShareFolder(folderId, folderName) {
+  document.getElementById('shareFolderFilename').textContent = folderName;
+  document.getElementById('shareFolderForm').action = `${PREFIX}/folder/${folderId}/share`;
+  document.getElementById('shareFolderModal').showModal();
+}
+
+function toggleFolderMenu(btn) {
+  const drop = document.getElementById(btn.dataset.dropdown);
+  const isOpen = drop.classList.contains('open');
+  closeFolderMenus();
+  if (!isOpen) {
+    // Przenosimy dropdown na koniec <body>. Dzięki temu nie jest już
+    // potomkiem .folder-card / .folder-menu-wrap, więc żaden przodek
+    // (overflow, kontekst nakładania, transform itp.) nie może go
+    // przyciąć ani ukryć "za" innymi elementami strony (np. plikami).
+    if (drop.parentElement !== document.body) {
+      document.body.appendChild(drop);
+    }
+    drop._ownerBtn = btn;
+    drop.classList.add('open');
+
+    // Mierzymy RZECZYWISTĄ szerokość po wyświetleniu — dropdown ma
+    // tylko min-width, więc realna szerokość może się różnić od
+    // założonej wartości. Dzięki pomiarowi wyrównanie do prawej
+    // krawędzi przycisku jest zawsze dokładne.
+    const rect = btn.getBoundingClientRect();
+    const dropRect = drop.getBoundingClientRect();
+    const dropW = dropRect.width;
+
+    let left = rect.right - dropW;
+    if (left < 8) left = rect.left;
+
+    // Nie pozwól, żeby menu wystawało poza prawą krawędź okna.
+    const maxLeft = window.innerWidth - dropW - 8;
+    if (left > maxLeft) left = Math.max(8, maxLeft);
+
+    drop.style.top  = (rect.bottom + 4) + 'px';
+    drop.style.left = left + 'px';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function closeFolderMenus(e) {
+  if (e && (e.target.closest('.folder-menu-wrap') || e.target.closest('.folder-dropdown'))) return;
+  document.querySelectorAll('.folder-dropdown.open').forEach(d => {
+    d.classList.remove('open');
+    if (d._ownerBtn) d._ownerBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+document.addEventListener('click', closeFolderMenus);
 
 function copyLink(url) {
   navigator.clipboard.writeText(url)
@@ -772,7 +1220,7 @@ function copyLink(url) {
 
 function openMoveFile(fileId, filename, currentFolderId) {
   document.getElementById('moveFileFilename').textContent = filename;
-  document.getElementById('moveFileForm').action = `/file/${fileId}/move`;
+  document.getElementById('moveFileForm').action = `${PREFIX}/file/${fileId}/move`;
   const sel = document.getElementById('move_file_folder');
   sel.value = currentFolderId !== null ? String(currentFolderId) : '';
   document.getElementById('moveFileModal').showModal();
@@ -780,13 +1228,13 @@ function openMoveFile(fileId, filename, currentFolderId) {
 
 function openRenameFolder(folderId, currentName) {
   document.getElementById('rename_folder_name').value = currentName;
-  document.getElementById('renameFolderForm').action = `/folder/${folderId}/rename`;
+  document.getElementById('renameFolderForm').action = `${PREFIX}/folder/${folderId}/rename`;
   document.getElementById('renameFolderModal').showModal();
 }
 
 function openMoveFolder(folderId, folderName) {
   document.getElementById('moveFolderName').textContent = folderName;
-  document.getElementById('moveFolderForm').action = `/folder/${folderId}/move`;
+  document.getElementById('moveFolderForm').action = `${PREFIX}/folder/${folderId}/move`;
   const sel = document.getElementById('move_folder_parent');
   for (const opt of sel.options) opt.disabled = opt.value === String(folderId);
   document.getElementById('moveFolderModal').showModal();
@@ -807,33 +1255,70 @@ const previewBody = document.getElementById('previewBody');
 const previewFilename = document.getElementById('previewFilename');
 const previewDownloadLink = document.getElementById('previewDownloadLink');
 
+// ── Wklej tę funkcję w dashboard.html zamiast istniejącej openPreview ─────────
+//
+// Wymaga window._urls zdefiniowanego w base.html (patrz base.html).
+// Obsługuje: image, video, audio, pdf.
+
 function openPreview(fileId, filename, type) {
   previewFilename.textContent = filename;
-  previewDownloadLink.href = `/file/${fileId}/download`;
-  const src = `/file/${fileId}/preview`;
+  previewDownloadLink.href = fileUrl('fileDownload', fileId);
+
+  const src = fileUrl('filePreview', fileId);
   previewBody.innerHTML = '';
 
   if (type === 'image') {
     const img = document.createElement('img');
-    img.src = src;
     img.alt = filename;
+    img.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;object-fit:contain;';
+    // Ustaw src po dodaniu do DOM żeby spinner działał poprawnie
+    img.src = src;
     previewBody.appendChild(img);
+
   } else if (type === 'video') {
     const video = document.createElement('video');
     video.src = src;
     video.controls = true;
     video.autoplay = true;
+    video.style.cssText = 'max-width:100%;max-height:78vh;display:block;margin:0 auto;';
     previewBody.appendChild(video);
+
+  } else if (type === 'audio') {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:2.5rem 1.5rem;width:100%;';
+
+    // Ikonka noty muzycznej
+    wrap.innerHTML = `
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent,#6366f1)">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+      <div style="font-size:.9rem;color:var(--text-muted);max-width:360px;text-align:center;word-break:break-all;">${filename}</div>
+    `;
+
+    const audio = document.createElement('audio');
+    audio.src = src;
+    audio.controls = true;
+    audio.autoplay = true;
+    audio.style.cssText = 'width:100%;max-width:420px;';
+    wrap.appendChild(audio);
+    previewBody.appendChild(wrap);
+
   } else if (type === 'pdf') {
     const iframe = document.createElement('iframe');
     iframe.className = 'preview-pdf';
-    iframe.src = src;
+    // Dodaj #toolbar=1 żeby Chrome pokazał własny toolbar PDF
+    iframe.src = src + '#toolbar=1&navpanes=0';
+    iframe.title = filename;
     previewBody.appendChild(iframe);
+
   } else {
     previewBody.innerHTML = `
       <div class="preview-unsupported">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <p>Podgląd niedostępny dla tego typu pliku.</p>
       </div>`;
@@ -842,27 +1327,15 @@ function openPreview(fileId, filename, type) {
   previewModal.showModal();
 }
 
+// ── closePreview — zatrzymuje też audio ───────────────────────────────────────
 function closePreview() {
-  // Zatrzymaj odtwarzanie wideo i zwolnij zasoby przed zamknięciem
   const video = previewBody.querySelector('video');
-  if (video) {
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-  }
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+  const audio = previewBody.querySelector('audio');
+  if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
   previewBody.innerHTML = '';
   previewModal.close();
 }
-
-previewModal.addEventListener('cancel', closePreview);
-previewModal.addEventListener('click', (e) => {
-  // Zamknij po kliknięciu w tło dialogu (poza modal-content)
-  const rect = previewModal.getBoundingClientRect();
-  const inDialog = e.clientX >= rect.left && e.clientX <= rect.right &&
-                   e.clientY >= rect.top && e.clientY <= rect.bottom;
-  if (!inDialog) closePreview();
-});
-
 // ═══════════════════════════════════════════
 // Drag & drop
 // ═══════════════════════════════════════════
@@ -925,7 +1398,7 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
     text: 'Pobierz',
     onClick: () => { window.location.href = `/file/${id}/download`; }
   });
-  
+
   actions.push({
     icon: svgIcon('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
     text: 'Zmień nazwę',
@@ -982,7 +1455,7 @@ function buildFileActions(id, label, isShared, folderId, isPreviewable, previewT
   renderActions(actions);
 }
 
-function buildFolderActions(id, label) {
+function buildFolderActions(id, label, isShared) {
   mobileTitle.textContent = label;
   mobileBody.innerHTML = '';
 
@@ -998,18 +1471,46 @@ function buildFolderActions(id, label) {
       onClick: () => { mobileModal.close(); openMoveFolder(id, label); }
     },
     {
-      icon: svgIcon('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
-      text: 'Usuń folder',
-      danger: true,
-      onClick: () => {
-        if (confirm(`Usunąć folder ${label} i całą zawartość?`)) {
-          const card = document.querySelector(`.folder-card[data-id="${id}"]`);
-          const form = card ? card.querySelector('form') : null;
-          if (form) form.submit();
-        }
-      }
+      icon: svgIcon('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>'),
+      text: 'Udostępnij',
+      onClick: () => { mobileModal.close(); openShareFolder(id, label); }
     }
   ];
+
+  if (isShared) {
+    actions.push({
+      icon: svgIcon('<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+      text: 'Kopiuj link',
+      onClick: () => {
+        const card = document.querySelector(`.folder-card[data-id="${id}"]`);
+        const copyBtn = card ? card.querySelector('button[onclick^="copyLink"]') : null;
+        if (copyBtn) copyBtn.click();
+        mobileModal.close();
+      }
+    });
+    actions.push({
+      icon: svgIcon('<line x1="1" y1="1" x2="23" y2="23"/><path d="M20.88 20.88A3 3 0 0 1 18 22a3 3 0 0 1-3-3M6 12a3 3 0 0 0-3 3 3 3 0 0 0 3 3"/>'),
+      text: 'Wyłącz udostępnianie',
+      onClick: () => {
+        const card = document.querySelector(`.folder-card[data-id="${id}"]`);
+        const form = card ? card.querySelector('form[action$="/unshare"]') : null;
+        if (form) form.submit();
+      }
+    });
+  }
+
+  actions.push({
+    icon: svgIcon('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
+    text: 'Usuń folder',
+    danger: true,
+    onClick: () => {
+      if (confirm(`Usunąć folder ${label} i całą zawartość?`)) {
+        const card = document.querySelector(`.folder-card[data-id="${id}"]`);
+        const form = card ? card.querySelector('form[action$="/delete"]') : null;
+        if (form) form.submit();
+      }
+    }
+  });
 
   renderActions(actions);
 }
@@ -1069,7 +1570,8 @@ function openCardActions(card) {
     }
     buildFileActions(id, label, isShared, folderId === 'null' ? null : folderId, isPreviewable, previewType);
   } else if (kind === 'folder') {
-    buildFolderActions(id, label);
+    const isShared = !!card.querySelector('.folder-shared-dot');
+    buildFolderActions(id, label, isShared);
   }
 
   mobileModal.showModal();
@@ -1078,5 +1580,114 @@ function openCardActions(card) {
 if (IS_TOUCH) {
   document.querySelectorAll('.file-card, .folder-card').forEach(attachLongPress);
 }
+
+// ═══════════════════════════════════════════
+// Modal: Moje udostępnienia
+// ═══════════════════════════════════════════
+function openSharedLinksModal() {
+  updateSlCountdowns();
+  document.getElementById('sharedLinksModal').showModal();
+}
+
+function copySlLink(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1500);
+  }).catch(() => {
+    // fallback
+    const tmp = document.createElement('textarea');
+    tmp.value = url;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1500);
+  });
+}
+
+function updateSlCountdowns() {
+  document.querySelectorAll('.sl-expires[data-expires]').forEach(el => {
+    const exp = new Date(el.dataset.expires + (el.dataset.expires.endsWith('Z') ? '' : 'Z'));
+    const now = new Date();
+    const diff = exp - now;
+    if (diff <= 0) {
+      el.textContent = 'Wygasł';
+      el.style.color = '#f87171';
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (h < 24) {
+      el.textContent = `Wygasa za ${h}h ${m}min`;
+      el.style.color = h < 2 ? '#f87171' : '#facc15';
+    } else {
+      const d = Math.floor(h / 24);
+      el.textContent = `Wygasa za ${d} dni`;
+      el.style.color = '#a3e635';
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// Przeciąganie plików do folderów (drag & drop)
+// ═══════════════════════════════════════════
+(function () {
+  const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
+
+  document.addEventListener('dragstart', e => {
+    const card = e.target.closest('.file-card');
+    if (!card) return;
+    e.dataTransfer.setData('text/plain', card.dataset.id);
+    e.dataTransfer.effectAllowed = 'move';
+    // Odroczone, żeby przeglądarka zdążyła namalować "duch" przeciąganego elementu
+    setTimeout(() => card.classList.add('dragging'), 0);
+  });
+
+  document.addEventListener('dragend', e => {
+    const card = e.target.closest('.file-card');
+    if (card) card.classList.remove('dragging');
+    document.querySelectorAll('.folder-card.drag-over').forEach(f => f.classList.remove('drag-over'));
+  });
+
+  document.addEventListener('dragover', e => {
+    const folder = e.target.closest('.folder-card');
+    if (!folder) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    folder.classList.add('drag-over');
+  });
+
+  document.addEventListener('dragleave', e => {
+    const folder = e.target.closest('.folder-card');
+    if (!folder || folder.contains(e.relatedTarget)) return;
+    folder.classList.remove('drag-over');
+  });
+
+  document.addEventListener('drop', e => {
+    const folder = e.target.closest('.folder-card');
+    if (!folder) return;
+    e.preventDefault();
+    folder.classList.remove('drag-over');
+
+    const fileId = e.dataTransfer.getData('text/plain');
+    const folderId = folder.dataset.id;
+    if (!fileId) return;
+
+    const fd = new FormData();
+    fd.append('folder_id', folderId);
+    if (CURRENT_FOLDER_ID) fd.append('redirect_to', CURRENT_FOLDER_ID);
+
+    fetch(`${PREFIX}/file/${fileId}/move`, { method: 'POST', body: fd })
+      .then(res => {
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          showToast('Nie udało się przenieść pliku.');
+        }
+      })
+      .catch(() => showToast('Nie udało się przenieść pliku. Sprawdź połączenie.'));
+  });
+})();
 </script>
 {% endblock %}

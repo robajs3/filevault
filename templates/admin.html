@@ -193,6 +193,118 @@
   </div>
 </div>
 
+<!-- ═══════ APLIKACJE (LAUNCHER) ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Aplikacje w panelu nawigacyjnym</h2>
+  </div>
+
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="table" id="appsTable">
+      <thead>
+        <tr>
+          <th>Nazwa</th>
+          <th>URL</th>
+          <th>Opis</th>
+          <th>Ikona / kolor</th>
+          <th>Kolejność</th>
+          <th>Status</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for app in apps %}
+        <tr>
+          <td><input type="text" name="name" form="edit-app-{{ app.id }}" value="{{ app.name }}" class="input-sm" style="width:130px" required></td>
+          <td><input type="text" name="url" form="edit-app-{{ app.id }}" value="{{ app.url }}" class="input-sm" style="width:130px" placeholder="/sciezka"></td>
+          <td><input type="text" name="description" form="edit-app-{{ app.id }}" value="{{ app.description or '' }}" class="input-sm" style="width:180px"></td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <select name="icon" form="edit-app-{{ app.id }}" class="input-sm">
+                {% for icon in app_icons %}
+                <option value="{{ icon }}" {{ 'selected' if app.icon == icon else '' }}>{{ icon }}</option>
+                {% endfor %}
+              </select>
+              <select name="color" form="edit-app-{{ app.id }}" class="input-sm">
+                {% for color in app_colors %}
+                <option value="{{ color }}" {{ 'selected' if app.color == color else '' }}>{{ color }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </td>
+          <td><input type="number" name="sort_order" form="edit-app-{{ app.id }}" value="{{ app.sort_order }}" class="input-sm" style="width:60px"></td>
+          <td>
+            <span class="badge {{ 'badge-off' if not app.is_enabled else ('badge-warn' if app.is_maintenance else 'badge-ok') }}">
+              {{ 'Ukryta' if not app.is_enabled else ('Konserwacja' if app.is_maintenance else 'Aktywna') }}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <button type="submit" form="edit-app-{{ app.id }}" class="btn btn-sm btn-ghost" title="Zapisz zmiany">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <form method="POST" action="{{ url_for('admin.toggle_app_enabled', app_id=app.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm {{ 'btn-accent' if not app.is_enabled else 'btn-danger' }}"
+                        title="{{ 'Pokaż w launcherze' if not app.is_enabled else 'Ukryj z launchera' }}">
+                  {{ 'Pokaż' if not app.is_enabled else 'Ukryj' }}
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('admin.toggle_app_maintenance', app_id=app.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm {{ 'btn-ghost' if not app.is_maintenance else 'btn-accent' }}"
+                        title="Przełącz tryb konserwacji">
+                  {{ 'Włącz konserwację' if not app.is_maintenance else 'Wyłącz konserwację' }}
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('admin.delete_app_link', app_id=app.id) }}" style="display:inline"
+                    onsubmit="return confirm('Usunąć aplikację „{{ app.name }}” z launchera na stałe?');">
+                <button type="submit" class="btn btn-sm btn-danger" title="Usuń">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
+              </form>
+              <!-- Formularz edycji wiersza - pusty, powiązany z polami przez atrybut form="" powyżej -->
+              <form id="edit-app-{{ app.id }}" method="POST" action="{{ url_for('admin.update_app_link', app_id=app.id) }}" style="display:none"></form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-add-form" style="margin-top:16px">
+    <h3 style="font-size:.95rem;margin-bottom:10px;color:var(--text-muted)">Dodaj nową aplikację</h3>
+    <form method="POST" action="{{ url_for('admin.create_app_link') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Slug (unikalny)</label>
+        <input type="text" name="slug" class="input-sm" style="width:110px" placeholder="np. zflix" required></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Nazwa</label>
+        <input type="text" name="name" class="input-sm" style="width:130px" required></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">URL</label>
+        <input type="text" name="url" class="input-sm" style="width:130px" placeholder="/sciezka"></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Opis</label>
+        <input type="text" name="description" class="input-sm" style="width:180px"></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Ikona</label>
+        <select name="icon" class="input-sm">
+          {% for icon in app_icons %}<option value="{{ icon }}">{{ icon }}</option>{% endfor %}
+        </select></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Kolor</label>
+        <select name="color" class="input-sm">
+          {% for color in app_colors %}<option value="{{ color }}">{{ color }}</option>{% endfor %}
+        </select></div>
+      <div><label style="font-size:.75rem;color:var(--text-muted);display:block">Kolejność</label>
+        <input type="number" name="sort_order" value="0" class="input-sm" style="width:60px"></div>
+      <button type="submit" class="btn btn-sm btn-accent">Dodaj aplikację</button>
+    </form>
+  </div>
+</div>
+
+<style>
+.badge-warn { background: rgba(245,158,11,.14); color: var(--warning); }
+</style>
+
 <style>
 .section-header {
   display: flex; align-items: center; justify-content: space-between;
