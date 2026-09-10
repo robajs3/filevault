@@ -1,13 +1,47 @@
 import os
+import secrets
+import sso_client
 from datetime import date
-from flask import Flask, render_template, redirect
+from flask import Flask, render_template, redirect, session, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
-from models import db, AppLink
+from models import db, AppLink, User
 from controllers import auth_bp, files_bp, folders_bp, share_bp, admin_bp, api_bp, rooms_bp, profile_bp
 
 PREFIX = "/filevault"
+
+
+def _create_filevault_user(hub_username: str):
+    """Zakłada w FileVault nowe lokalne konto dla usera z LoginHub, który
+    jeszcze nie miał tu żadnego konta (wywoływane przez
+    sso_client.resolve_or_create_local_user przy pierwszej wizycie).
+    Hasło jest losowe i nieznane nikomu — logowanie idzie wyłącznie przez SSO.
+    get-or-create po username, żeby nie tworzyć duplikatu przy ewentualnym
+    powtórnym wywołaniu (np. gdy zgłoszenie do Huba nie doszło za pierwszym razem).
+    """
+    existing = User.query.filter_by(username=hub_username).first()
+    if existing:
+        return existing.id, existing.username
+
+    username = hub_username
+    suffix = 1
+    while User.query.filter_by(username=username).first():
+        suffix += 1
+        username = f"{hub_username}{suffix}"
+
+    # email jest w FileVault wymagany i unikalny, a Hub go nie zna —
+    # generujemy placeholder, user może go później zmienić w profilu.
+    email = f"{username}@sso.local"
+    while User.query.filter_by(email=email).first():
+        suffix += 1
+        email = f"{hub_username}{suffix}@sso.local"
+
+    user = User(username=username, email=email)
+    user.set_password(secrets.token_urlsafe(24))
+    db.session.add(user)
+    db.session.commit()
+    return user.id, user.username
 
 def create_app(config_class=Config) -> Flask:
     app = Flask(__name__)
@@ -78,8 +112,17 @@ def create_app(config_class=Config) -> Flask:
         return render_template("error.html", code=410,
                                message="Ten link wygasł lub przekroczono limit pobrań."), 410
 
+    @app.before_request
+    def _sso_autologin():
+        if session.get("user_id"):
+            return
+        local_id = sso_client.resolve_or_create_local_user(
+            app_slug="filevault", create_user=_create_filevault_user
+        )
+        if local_id:
+            session.permanent = True
+            session["user_id"] = local_id
     return app
-
 
 def init_db(app: Flask) -> None:
     with app.app_context():

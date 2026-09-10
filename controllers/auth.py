@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from services import AuthService
+import sso_client
 from services.auth_service import REMEMBER_COOKIE_NAME, REMEMBER_COOKIE_DAYS
 
 auth_bp = Blueprint("auth", __name__)
@@ -35,35 +36,17 @@ def login():
 
 @auth_bp.route("/logout")
 def logout():
-    response = make_response(redirect(url_for("auth.login")))
+    response = make_response(redirect(sso_client.login_url("/filevault/")))
     response.delete_cookie(REMEMBER_COOKIE_NAME)
+    sso_client.clear_sso_cookie(response)
     AuthService.logout()
     return response
 
-
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
-    from flask import current_app
-    if not current_app.config.get("ALLOW_REGISTRATION", True):
-        flash("Rejestracja jest wyłączona. Skontaktuj się z administratorem.", "info")
-        return redirect(url_for("auth.login"))
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
-
-        if not username or not email or not password:
-            flash("Wypełnij wszystkie pola.", "danger")
-        elif password != confirm:
-            flash("Hasła nie są identyczne.", "danger")
-        else:
-            user, error = AuthService.register(username, email, password)
-            if error:
-                flash(error, "danger")
-            else:
-                flash("Konto zostało utworzone!", "success")
-                return redirect(url_for("files.dashboard"))
-
-    return render_template("register.html")
+    # Konta zakłada teraz LoginHub (jedno konto do wszystkich appek) — appka
+    # przekierowuje na jego rejestrację zamiast pokazywać własny, osobny
+    # formularz, żeby nie powstawały konta "tylko lokalne" bez SSO.
+    from urllib.parse import quote
+    next_url = request.args.get("next") or url_for("files.dashboard")
+    return redirect(f"/auth/register?next={quote(next_url)}")

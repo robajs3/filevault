@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import session, redirect, url_for, flash, abort, g, request
 from models import User
+import sso_client
 from services.auth_service import AuthService, REMEMBER_COOKIE_NAME
 
 
@@ -15,8 +16,7 @@ def login_required(f):
                 if user:
                     g.user = user
                     return f(*args, **kwargs)
-            flash("Zaloguj się, aby kontynuować.", "warning")
-            return redirect(url_for("auth.login", next=request.path))
+            return redirect(sso_client.login_url(request.path))
         g.user = User.query.get(session["user_id"])
         if not g.user or not g.user.is_active:
             session.clear()
