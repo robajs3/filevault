@@ -197,6 +197,7 @@ def shared_room(token):
         "shared_folder.html", folder=room, files=files, token=token,
         download_endpoint="share.shared_room_download",
         file_download_endpoint="share.shared_room_file",
+        file_preview_endpoint="share.shared_room_file_preview",
     )
 
 
@@ -279,6 +280,7 @@ def shared_room_folder(token):
         "shared_folder.html", folder=folder, files=files, token=token,
         download_endpoint="share.shared_room_folder_download",
         file_download_endpoint="share.shared_room_folder_file",
+        file_preview_endpoint="share.shared_room_folder_file_preview",
     )
 
 
