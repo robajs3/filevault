@@ -127,12 +127,31 @@ def create_app(config_class=Config) -> Flask:
     # Domyślnie ŻADNA strona FileVault nie może być osadzona w <iframe> na
     # obcej stronie (to był dotąd brak — żaden nagłówek w ogóle nie był
     # ustawiany, więc każda strona, łącznie z prywatnym dashboardem, mogła
-    # zostać wrobiona w iframe na dowolnej stronie trzeciej). Jedyny
-    # świadomy wyjątek to publiczna strona udostępnionego folderu
-    # (share.shared_folder — /sf/<token>), którą Koloseum chce pokazywać
-    # w podglądzie inline. Tam pozwalamy na framing wyłącznie z originów
-    # wymienionych w FRAME_ALLOWED_ORIGINS (patrz config.py).
-    EMBEDDABLE_ENDPOINTS = {"share.shared_folder", "share.shared_room", "share.shared_room_folder"}
+    # zostać wrobiona w iframe na dowolnej stronie trzeciej). Świadomy
+    # wyjątek to publiczne strony udostępniania, które Koloseum chce
+    # pokazywać w podglądzie inline. Tam pozwalamy na framing wyłącznie
+    # z originów wymienionych w FRAME_ALLOWED_ORIGINS (patrz config.py).
+    #
+    # WAŻNE: strona udostępnionego folderu (share.shared_folder i jej
+    # odpowiedniki dla pokoi) sama w sobie ładuje się w ramce Koloseum bez
+    # problemu — ale kliknięcie "Podgląd" przy pliku PDF wewnątrz niej
+    # tworzy KOLEJNĄ, zagnieżdżoną ramkę wskazującą na endpoint
+    # "*_file_preview". Ten endpoint też musi być na tej liście, inaczej
+    # dostaje domyślne X-Frame-Options: DENY i przeglądarka blokuje
+    # zagnieżdżony podgląd, mimo że sam folder wyświetla się poprawnie
+    # (to właśnie powodowało, że podgląd plików w folderze osadzonym w
+    # Koloseum nie działał, chociaż ten sam podgląd otwarty wprost w
+    # FileVault działał bez zarzutu). share.preview_shared (podgląd
+    # pojedynczego udostępnionego pliku, /s/<token>/preview) jest tu z
+    # tego samego powodu — patrz komentarz przy FRAME_ALLOWED_ORIGINS w
+    # config.py, który już zakładał osadzanie /s/<token>.
+    EMBEDDABLE_ENDPOINTS = {
+        "share.shared_folder", "share.shared_room", "share.shared_room_folder",
+        "share.shared_folder_file_preview",
+        "share.shared_room_file_preview",
+        "share.shared_room_folder_file_preview",
+        "share.preview_shared",
+    }
 
     @app.after_request
     def _set_frame_headers(response):

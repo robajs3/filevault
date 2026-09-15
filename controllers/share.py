@@ -77,6 +77,26 @@ def download_shared(token):
     log_action("shared_download", detail=record.original_name, user_id=record.user_id)
     return send_file(path, download_name=record.original_name, as_attachment=True)
 
+
+@share_bp.route("/s/<token>/preview")
+def preview_shared(token):
+    """Podgląd inline pojedynczego udostępnionego pliku (bez wymuszania
+    pobrania, bez liczenia do download_count) — używane m.in. przez przycisk
+    'Podgląd' przy linkach FileVault w innych appkach (np. Koloseum), analogicznie
+    do podglądu plików w udostępnionym folderze (patrz shared_folder_file_preview).
+    Zwykły link /s/<token> zawsze wymusza pobranie, więc do podglądu w
+    przeglądarce/iframe potrzebny jest osobny endpoint."""
+    record = FileRecord.query.filter_by(share_token=token).first_or_404()
+    if not record.is_share_active:
+        abort(410)
+    if record.share_password_hash:
+        # Podgląd inline (np. w <iframe>) nie ma jak przeprowadzić usera przez
+        # interaktywny ekran hasła — w takim wypadku plik trzeba pobrać
+        # zwykłym linkiem /s/<token>, gdzie formularz hasła zadziała normalnie.
+        abort(403)
+    return _preview_shared_file(record)
+
+
 # ── Widok publiczny folderu ────────────────────────────────────────────────────
 
 @share_bp.route("/sf/<token>", methods=["GET", "POST"])
