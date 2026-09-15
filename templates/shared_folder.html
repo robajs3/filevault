@@ -132,8 +132,10 @@
         </label>
         <span class="shared-file-ext">{{ file.extension or '?' }}</span>
         {% if file.is_previewable %}
-        <button type="button" class="shared-file-dl" title="Podglad"
-                onclick="openSharedPreview({{ url_for(file_preview_endpoint, token=token, file_id=file.id)|tojson }}, {{ file.preview_type|tojson }}, {{ file.original_name|tojson }})">
+        <button type="button" class="shared-file-dl preview-btn" title="Podgląd"
+                data-preview-url="{{ url_for(file_preview_endpoint, token=token, file_id=file.id) }}"
+                data-preview-type="{{ file.preview_type }}"
+                data-preview-name="{{ file.original_name }}">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
             <circle cx="12" cy="12" r="3"/>
@@ -239,6 +241,18 @@
 
     document.getElementById('sharedPreviewModal').addEventListener('close', () => {
       document.getElementById('sharedPreviewBody').innerHTML = '';
+    });
+
+    // Podpięcie przycisków podglądu przez addEventListener (nie inline onclick),
+    // żeby nazwy plików ze specjalnymi znakami/cudzysłowami nigdy nie psuły atrybutu HTML.
+    document.querySelectorAll('.preview-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openSharedPreview(
+          btn.dataset.previewUrl,
+          btn.dataset.previewType,
+          btn.dataset.previewName
+        );
+      });
     });
   </script>
 
