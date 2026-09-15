@@ -122,6 +122,32 @@ def create_app(config_class=Config) -> Flask:
         if local_id:
             session.permanent = True
             session["user_id"] = local_id
+
+    # ── Ochrona przed clickjackingiem + świadomy wyjątek dla Koloseum ──────
+    # Domyślnie ŻADNA strona FileVault nie może być osadzona w <iframe> na
+    # obcej stronie (to był dotąd brak — żaden nagłówek w ogóle nie był
+    # ustawiany, więc każda strona, łącznie z prywatnym dashboardem, mogła
+    # zostać wrobiona w iframe na dowolnej stronie trzeciej). Jedyny
+    # świadomy wyjątek to publiczna strona udostępnionego folderu
+    # (share.shared_folder — /sf/<token>), którą Koloseum chce pokazywać
+    # w podglądzie inline. Tam pozwalamy na framing wyłącznie z originów
+    # wymienionych w FRAME_ALLOWED_ORIGINS (patrz config.py).
+    EMBEDDABLE_ENDPOINTS = {"share.shared_folder"}
+
+    @app.after_request
+    def _set_frame_headers(response):
+        if request.endpoint in EMBEDDABLE_ENDPOINTS and app.config["FRAME_ALLOWED_ORIGINS"]:
+            allowed = " ".join(app.config["FRAME_ALLOWED_ORIGINS"])
+            # CSP frame-ancestors > X-Frame-Options (wspierane przez wszystkie
+            # nowoczesne przeglądarki) — dlatego dla tej trasy w ogóle nie
+            # ustawiamy X-Frame-Options, żeby go nie zostawić jako sprzeczny,
+            # bardziej restrykcyjny fallback dla starszych przeglądarek.
+            response.headers["Content-Security-Policy"] = f"frame-ancestors 'self' {allowed}"
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
+        return response
+
     return app
 
 def init_db(app: Flask) -> None:

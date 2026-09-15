@@ -1,0 +1,78 @@
+diff --git a/app.py b/app.py
+index 15a15d0..2a1e6ac 100644
+--- a/app.py
++++ b/app.py
+@@ -122,6 +122,32 @@ def create_app(config_class=Config) -> Flask:
+         if local_id:
+             session.permanent = True
+             session["user_id"] = local_id
++
++    # ── Ochrona przed clickjackingiem + świadomy wyjątek dla Koloseum ──────
++    # Domyślnie ŻADNA strona FileVault nie może być osadzona w <iframe> na
++    # obcej stronie (to był dotąd brak — żaden nagłówek w ogóle nie był
++    # ustawiany, więc każda strona, łącznie z prywatnym dashboardem, mogła
++    # zostać wrobiona w iframe na dowolnej stronie trzeciej). Jedyny
++    # świadomy wyjątek to publiczna strona udostępnionego folderu
++    # (share.shared_folder — /sf/<token>), którą Koloseum chce pokazywać
++    # w podglądzie inline. Tam pozwalamy na framing wyłącznie z originów
++    # wymienionych w FRAME_ALLOWED_ORIGINS (patrz config.py).
++    EMBEDDABLE_ENDPOINTS = {"share.shared_folder"}
++
++    @app.after_request
++    def _set_frame_headers(response):
++        if request.endpoint in EMBEDDABLE_ENDPOINTS and app.config["FRAME_ALLOWED_ORIGINS"]:
++            allowed = " ".join(app.config["FRAME_ALLOWED_ORIGINS"])
++            # CSP frame-ancestors > X-Frame-Options (wspierane przez wszystkie
++            # nowoczesne przeglądarki) — dlatego dla tej trasy w ogóle nie
++            # ustawiamy X-Frame-Options, żeby go nie zostawić jako sprzeczny,
++            # bardziej restrykcyjny fallback dla starszych przeglądarek.
++            response.headers["Content-Security-Policy"] = f"frame-ancestors 'self' {allowed}"
++        else:
++            response.headers["X-Frame-Options"] = "DENY"
++            response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
++        return response
++
+     return app
+ 
+ def init_db(app: Flask) -> None:
+diff --git a/config.py b/config.py
+index 1a79773..bf10791 100644
+--- a/config.py
++++ b/config.py
+@@ -38,6 +38,18 @@ class Config:
+     ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
+     REDIS_URL = os.environ.get("REDIS_URL", "memory://")
+ 
++    # Originy (schemat+host[:port]), którym wolno osadzać publiczne strony
++    # udostępniania (/filevault/sf/<token>, /filevault/s/<token>) we własnej
++    # ramce <iframe> — patrz nagłówki w app.py. Domyślnie NIKT nie może
++    # osadzać żadnej strony FileVault (ochrona przed clickjackingiem).
++    # Żeby Koloseum mogło pokazywać "Podgląd folderu" w iframe, ustaw tu
++    # jego publiczny adres, np.:
++    #   FRAME_ALLOWED_ORIGINS=https://koloseum.przyklad.pl
++    # Można podać kilka adresów oddzielonych przecinkiem (np. dev + prod).
++    FRAME_ALLOWED_ORIGINS = [
++        o.strip() for o in os.environ.get("FRAME_ALLOWED_ORIGINS", "").split(",") if o.strip()
++    ]
++
+     THUMBNAIL_SIZE = (320, 320)
+     THUMBNAILABLE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp"}
+     PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}
+diff --git a/filevault.service b/filevault.service
+index 47a39df..5c6cd6d 100644
+--- a/filevault.service
++++ b/filevault.service
+@@ -18,4 +18,10 @@ ALLOW_REGISTRATION=true
+ # ALLOWED_EXTENSIONS=pdf,docx,xlsx,jpg,png,zip,mp4
+ 
+ # Optional: Redis for persistent rate limiting (omit = in-memory)
+-# REDIS_URL=redis://localhost:6379/0
+\ No newline at end of file
++# REDIS_URL=redis://localhost:6379/0
++
++# Origins allowed to embed public share pages (/sf/<token>, /s/<token>) in
++# an <iframe> — e.g. Koloseum's "folder preview". Comma-separated, no
++# trailing slash. Leave empty to block framing everywhere (default,
++# safest option).
++# FRAME_ALLOWED_ORIGINS=https://koloseum.example.com
+\ No newline at end of file

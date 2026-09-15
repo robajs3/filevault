@@ -38,6 +38,18 @@ class Config:
     ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
     REDIS_URL = os.environ.get("REDIS_URL", "memory://")
 
+    # Originy (schemat+host[:port]), którym wolno osadzać publiczne strony
+    # udostępniania (/filevault/sf/<token>, /filevault/s/<token>) we własnej
+    # ramce <iframe> — patrz nagłówki w app.py. Domyślnie NIKT nie może
+    # osadzać żadnej strony FileVault (ochrona przed clickjackingiem).
+    # Żeby Koloseum mogło pokazywać "Podgląd folderu" w iframe, ustaw tu
+    # jego publiczny adres, np.:
+    #   FRAME_ALLOWED_ORIGINS=https://koloseum.przyklad.pl
+    # Można podać kilka adresów oddzielonych przecinkiem (np. dev + prod).
+    FRAME_ALLOWED_ORIGINS = [
+        o.strip() for o in os.environ.get("FRAME_ALLOWED_ORIGINS", "").split(",") if o.strip()
+    ]
+
     THUMBNAIL_SIZE = (320, 320)
     THUMBNAILABLE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp"}
     PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}

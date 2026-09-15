@@ -19,3 +19,9 @@ ALLOW_REGISTRATION=true
 
 # Optional: Redis for persistent rate limiting (omit = in-memory)
 # REDIS_URL=redis://localhost:6379/0
+
+# Origins allowed to embed public share pages (/sf/<token>, /s/<token>) in
+# an <iframe> — e.g. Koloseum's "folder preview". Comma-separated, no
+# trailing slash. Leave empty to block framing everywhere (default,
+# safest option).
+# FRAME_ALLOWED_ORIGINS=https://koloseum.example.com
