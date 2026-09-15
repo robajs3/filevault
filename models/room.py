@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
-from flask import url_for
 from .db import db
+from .share_url import build_share_url
 
 
 # Role w pokoju
@@ -50,11 +50,7 @@ class Room(db.Model):
     def share_url(self) -> str | None:
         if not self.share_token:
             return None
-        from flask import current_app
-        public = current_app.config.get("PUBLIC_URL")
-        if public:
-            return f"{public}/filevault/sr/{self.share_token}"
-        return url_for("share.shared_room", token=self.share_token, _external=True)
+        return build_share_url("share.shared_room", token=self.share_token)
 
     @property
     def is_share_active(self) -> bool:
@@ -196,11 +192,7 @@ class RoomFolder(db.Model):
     def share_url(self) -> str | None:
         if not self.share_token:
             return None
-        from flask import current_app
-        public = current_app.config.get("PUBLIC_URL")
-        if public:
-            return f"{public}/filevault/srf/{self.share_token}"
-        return url_for("share.shared_room_folder", token=self.share_token, _external=True)
+        return build_share_url("share.shared_room_folder", token=self.share_token)
 
     @property
     def is_share_active(self) -> bool:

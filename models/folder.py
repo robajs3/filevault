@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from flask import url_for
 from .db import db
+from .share_url import build_share_url
 
 
 class Folder(db.Model):
@@ -51,7 +51,7 @@ class Folder(db.Model):
     @property
     def share_url(self) -> str | None:
         if self.share_token:
-            return url_for("share.shared_folder", token=self.share_token, _external=True)
+            return build_share_url("share.shared_folder", token=self.share_token)
         return None
 
     @property

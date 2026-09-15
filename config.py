@@ -38,6 +38,22 @@ class Config:
     ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
     REDIS_URL = os.environ.get("REDIS_URL", "memory://")
 
+    # Publiczny adres (schemat+host[:port]), pod którym FileVault jest widoczny
+    # z zewnątrz. UŻYWANY DO BUDOWANIA share_url dla plików/folderów/pokoi.
+    #
+    # Bez tego, share_url jest budowany przez Flaskowe url_for(_external=True),
+    # które bierze host z NAGŁÓWKA HOST BIEŻĄCEGO ŻĄDANIA. To działa poprawnie,
+    # gdy request przychodzi wprost z przeglądarki (poprawny publiczny host) —
+    # ale gdy Koloseum woła FileVault po wewnętrznej sieci kontenerowej
+    # (FILEVAULT_INTERNAL_URL, patrz Koloseum), to żądanie ma Host ustawiony
+    # na adres wewnętrzny (np. host.docker.internal:8000), i TEN adres
+    # zostaje zaszyty w zwróconym share_url — link kompletnie bezużyteczny
+    # dla studenta poza siecią kontenerów.
+    #
+    # Ustaw na realny publiczny adres, np.:
+    #   PUBLIC_URL=https://robajs-serwer-dell.tail0ffa98.ts.net
+    PUBLIC_URL = (os.environ.get("PUBLIC_URL", "").rstrip("/") or None)
+
     # Originy (schemat+host[:port]), którym wolno osadzać publiczne strony
     # udostępniania (/filevault/sf/<token>, /filevault/s/<token>) we własnej
     # ramce <iframe> — patrz nagłówki w app.py. Domyślnie NIKT nie może

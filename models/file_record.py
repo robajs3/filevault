@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from flask import url_for
 from .db import db
+from .share_url import build_share_url
 
 PREVIEWABLE_AUDIO_EXTENSIONS = {"mp3", "wav"}
 PREVIEWABLE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"}
@@ -36,7 +36,7 @@ class FileRecord(db.Model):
     @property
     def share_url(self) -> str | None:
         if self.share_token:
-            return url_for("share.download_shared", token=self.share_token, _external=True)
+            return build_share_url("share.download_shared", token=self.share_token)
         return None
 
     @property
