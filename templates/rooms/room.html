@@ -42,7 +42,9 @@
           <button type="submit" class="btn btn-ghost btn-sm" title="Wylacz udostepnianie">Cofnij</button>
         </form>
       {% else %}
-        <button class="btn btn-outline btn-sm" onclick="openShareTarget({{ url_for('rooms.share_room', room_id=room.id)|tojson }}, {{ room.name|tojson }})">
+        <button class="btn btn-outline btn-sm share-target-btn"
+                data-share-url="{{ url_for('rooms.share_room', room_id=room.id) }}"
+                data-share-name="{{ room.name }}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
             <circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -144,8 +146,9 @@
           </button>
         </form>
         {% else %}
-        <button class="btn btn-sm btn-ghost"
-                onclick="openShareTarget({{ url_for('rooms.share_room_folder', room_id=room.id, folder_id=sf.id)|tojson }}, {{ sf.name|tojson }})"
+        <button class="btn btn-sm btn-ghost share-target-btn"
+                data-share-url="{{ url_for('rooms.share_room_folder', room_id=room.id, folder_id=sf.id) }}"
+                data-share-name="{{ sf.name }}"
                 title="Udostepnij folder">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
@@ -859,6 +862,16 @@ function openShareTarget(actionUrl, name) {
   document.getElementById('shareTargetTitle').textContent = 'Udostepnij: ' + name;
   document.getElementById('shareTargetModal').showModal();
 }
+
+// Delegacja zdarzeń zamiast inline onclick — nazwy pokoi/folderów mogą
+// zawierać cudzysłowy, które psuły atrybut HTML przy użyciu tojson wewnątrz
+// atrybutu w podwójnych cudzysłowach.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.share-target-btn');
+  if (btn) {
+    openShareTarget(btn.dataset.shareUrl, btn.dataset.shareName);
+  }
+});
 
 function copyInviteCode(code) {
   navigator.clipboard.writeText(code)
