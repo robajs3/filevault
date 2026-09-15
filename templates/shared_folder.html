@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ folder.name }} — FileVault{% endblock %}
 {% block content %}
+{# download_endpoint: blueprint.endpoint dla "pobierz zaznaczone jako ZIP" (POST) #}
+{# file_download_endpoint: blueprint.endpoint dla pobrania pojedynczego pliku (GET) #}
+{# Oba mają domyślne wartości, żeby istniejące wywołania (udostępniony folder #}
+{# prywatny) działały bez zmian; widoki dla pokoi przekazują własne endpointy. #}
+{% set download_endpoint = download_endpoint if download_endpoint is defined else 'share.shared_folder_download' %}
+{% set file_download_endpoint = file_download_endpoint if file_download_endpoint is defined else 'share.shared_folder_file' %}
+{% set file_preview_endpoint = file_preview_endpoint if file_preview_endpoint is defined else 'share.shared_folder_file_preview' %}
 
 <style>
   .shared-folder-wrap {
@@ -52,6 +59,28 @@
     background: var(--bg-3); color: var(--text-muted);
     border-radius: 5px; padding: .2rem .45rem;
   }
+  .shared-file-dl {
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    transition: background .15s, color .15s;
+  }
+  .shared-file-dl:hover { background: var(--bg-3); color: var(--accent); }
+
+  .preview-modal { max-width: min(92vw, 900px); width: 100%; padding: 0; border: none; background: transparent; }
+  .preview-modal::backdrop { background: rgba(0,0,0,.72); }
+  .preview-modal-inner { background: var(--bg-2); border-radius: 14px; overflow: hidden; }
+  .preview-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .85rem 1.1rem; border-bottom: 1px solid var(--border);
+    font-size: .85rem; font-weight: 600;
+  }
+  .preview-modal-body { display: flex; align-items: center; justify-content: center; max-height: 78vh; background: #000; }
+  .preview-modal-body img, .preview-modal-body video { max-width: 100%; max-height: 78vh; display: block; }
+  .preview-modal-body iframe { width: 100%; height: 78vh; border: 0; background: #fff; }
+  .preview-modal-body audio { width: 100%; margin: 2.5rem 1.5rem; }
 
   .shared-actions {
     display: flex;
@@ -90,17 +119,35 @@
   </div>
 
   {% if files %}
-  <form method="POST" action="{{ url_for('share.shared_folder_download', token=token) }}" id="dlForm">
+  <form method="POST" action="{{ url_for(download_endpoint, token=token) }}" id="dlForm">
     <div class="shared-files-list" id="fileList">
       {% for file in files %}
-      <label class="shared-file-row">
-        <input class="shared-file-checkbox file-cb" type="checkbox" name="file_ids" value="{{ file.id }}" checked>
-        <div class="shared-file-info">
-          <div class="shared-file-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
-          <div class="shared-file-size">{{ file.size_human }}</div>
-        </div>
+      <div class="shared-file-row">
+        <label style="display:flex;align-items:center;gap:.75rem;flex:1;min-width:0;cursor:pointer">
+          <input class="shared-file-checkbox file-cb" type="checkbox" name="file_ids" value="{{ file.id }}" checked>
+          <div class="shared-file-info">
+            <div class="shared-file-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+            <div class="shared-file-size">{{ file.size_human }}</div>
+          </div>
+        </label>
         <span class="shared-file-ext">{{ file.extension or '?' }}</span>
-      </label>
+        {% if file.is_previewable %}
+        <button type="button" class="shared-file-dl" title="Podglad"
+                onclick="openSharedPreview({{ url_for(file_preview_endpoint, token=token, file_id=file.id)|tojson }}, {{ file.preview_type|tojson }}, {{ file.original_name|tojson }})">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        {% endif %}
+        <a class="shared-file-dl" href="{{ url_for(file_download_endpoint, token=token, file_id=file.id) }}"
+           title="Pobierz tylko ten plik">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </a>
+      </div>
       {% endfor %}
     </div>
 
@@ -149,6 +196,50 @@
       updateBtn();
     });
     updateBtn();
+  </script>
+
+  <dialog id="sharedPreviewModal" class="modal preview-modal">
+    <div class="preview-modal-inner">
+      <div class="preview-modal-header">
+        <span id="sharedPreviewName"></span>
+        <button class="modal-close" onclick="closeSharedPreview()" style="background:none;border:0;color:inherit;cursor:pointer;font-size:1.2rem">×</button>
+      </div>
+      <div class="preview-modal-body" id="sharedPreviewBody"></div>
+    </div>
+  </dialog>
+
+  <script>
+    function openSharedPreview(url, type, name) {
+      const body = document.getElementById('sharedPreviewBody');
+      document.getElementById('sharedPreviewName').textContent = name;
+      body.innerHTML = '';
+      let el;
+      if (type === 'image') {
+        el = document.createElement('img');
+        el.src = url;
+      } else if (type === 'video') {
+        el = document.createElement('video');
+        el.src = url; el.controls = true; el.autoplay = true;
+      } else if (type === 'audio') {
+        el = document.createElement('audio');
+        el.src = url; el.controls = true; el.autoplay = true;
+      } else if (type === 'pdf') {
+        el = document.createElement('iframe');
+        el.src = url;
+      }
+      if (el) body.appendChild(el);
+      document.getElementById('sharedPreviewModal').showModal();
+    }
+
+    function closeSharedPreview() {
+      const modal = document.getElementById('sharedPreviewModal');
+      document.getElementById('sharedPreviewBody').innerHTML = ''; // zatrzymaj odtwarzanie audio/wideo
+      modal.close();
+    }
+
+    document.getElementById('sharedPreviewModal').addEventListener('close', () => {
+      document.getElementById('sharedPreviewBody').innerHTML = '';
+    });
   </script>
 
   {% else %}

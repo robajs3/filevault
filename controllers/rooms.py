@@ -341,6 +341,66 @@ def rename_folder(room_id, folder_id):
         return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder.parent_id))
     return redirect(url_for("rooms.room_view", room_id=room_id))
 
+# ── Udostępnij / cofnij udostępnienie podfolderu pokoju ──────────────────────
+
+@rooms_bp.route("/rooms/<int:room_id>/folders/<int:folder_id>/share", methods=["POST"])
+@login_required
+def share_room_folder(room_id, folder_id):
+    from models.room import RoomFolder
+    room = Room.query.get_or_404(room_id)
+    folder = RoomFolder.query.filter_by(id=folder_id, room_id=room_id).first_or_404()
+    ok, err = RoomService.create_folder_share(
+        room, g.user, folder,
+        expires_hours=int(request.form.get("expires_hours", 24)),
+        password=request.form.get("share_password", "").strip(),
+    )
+    if not ok:
+        flash(err, "danger")
+    else:
+        flash(f"Link do folderu: {folder.share_url}", "success")
+    if folder.parent_id:
+        return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder.parent_id))
+    return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder_id))
+
+
+@rooms_bp.route("/rooms/<int:room_id>/folders/<int:folder_id>/unshare", methods=["POST"])
+@login_required
+def unshare_room_folder(room_id, folder_id):
+    from models.room import RoomFolder
+    room = Room.query.get_or_404(room_id)
+    folder = RoomFolder.query.filter_by(id=folder_id, room_id=room_id).first_or_404()
+    ok, err = RoomService.revoke_folder_share(room, g.user, folder)
+    flash("Udostępnianie folderu wyłączone." if ok else err, "info" if ok else "danger")
+    return redirect(url_for("rooms.folder_view", room_id=room_id, folder_id=folder_id))
+
+
+# ── Udostępnij / cofnij udostępnienie całego pokoju (głównego folderu) ───────
+
+@rooms_bp.route("/rooms/<int:room_id>/share", methods=["POST"])
+@login_required
+def share_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    ok, err = RoomService.create_room_share(
+        room, g.user,
+        expires_hours=int(request.form.get("expires_hours", 24)),
+        password=request.form.get("share_password", "").strip(),
+    )
+    if not ok:
+        flash(err, "danger")
+    else:
+        flash(f"Link do pokoju: {room.share_url}", "success")
+    return redirect(url_for("rooms.room_view", room_id=room_id))
+
+
+@rooms_bp.route("/rooms/<int:room_id>/unshare", methods=["POST"])
+@login_required
+def unshare_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    ok, err = RoomService.revoke_room_share(room, g.user)
+    flash("Udostępnianie pokoju wyłączone." if ok else err, "info" if ok else "danger")
+    return redirect(url_for("rooms.room_view", room_id=room_id))
+
+
 # ── Wgraj nowy plik bezpośrednio do pokoju ───────────────────────────────────
 
 @rooms_bp.route("/rooms/<int:room_id>/files/upload", methods=["POST"])

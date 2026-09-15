@@ -132,7 +132,7 @@ def create_app(config_class=Config) -> Flask:
     # (share.shared_folder — /sf/<token>), którą Koloseum chce pokazywać
     # w podglądzie inline. Tam pozwalamy na framing wyłącznie z originów
     # wymienionych w FRAME_ALLOWED_ORIGINS (patrz config.py).
-    EMBEDDABLE_ENDPOINTS = {"share.shared_folder"}
+    EMBEDDABLE_ENDPOINTS = {"share.shared_folder", "share.shared_room", "share.shared_room_folder"}
 
     @app.after_request
     def _set_frame_headers(response):

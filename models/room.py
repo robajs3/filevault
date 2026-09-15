@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timedelta, timezone
+from flask import url_for
 from .db import db
 
 
@@ -21,6 +22,13 @@ class Room(db.Model):
     description = db.Column(db.String(500), nullable=True)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # Udostępnianie głównego folderu pokoju (root, czyli pliki/podfoldery
+    # bez folder_id/parent_id) publicznym linkiem — analogicznie do
+    # udostępniania prywatnego Folder w models/folder.py.
+    share_token          = db.Column(db.String(64), unique=True, nullable=True)
+    share_expires_at     = db.Column(db.DateTime, nullable=True)
+    share_password_hash  = db.Column(db.String(255), nullable=True)
+
     memberships  = db.relationship("RoomMembership", backref="room",
                                    cascade="all, delete-orphan", lazy="dynamic")
     invite_codes = db.relationship("RoomInviteCode", backref="room",
@@ -37,6 +45,28 @@ class Room(db.Model):
     @property
     def file_count(self) -> int:
         return self.files.count()
+
+    @property
+    def share_url(self) -> str | None:
+        if not self.share_token:
+            return None
+        from flask import current_app
+        public = current_app.config.get("PUBLIC_URL")
+        if public:
+            return f"{public}/filevault/sr/{self.share_token}"
+        return url_for("share.shared_room", token=self.share_token, _external=True)
+
+    @property
+    def is_share_active(self) -> bool:
+        if not self.share_token:
+            return False
+        if self.share_expires_at:
+            expires = self.share_expires_at
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires < datetime.now(timezone.utc):
+                return False
+        return True
 
 
 class RoomMembership(db.Model):
@@ -135,6 +165,11 @@ class RoomFolder(db.Model):
     name          = db.Column(db.String(255), nullable=False)
     created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # Udostępnianie tego konkretnego podfolderu pokoju publicznym linkiem.
+    share_token          = db.Column(db.String(64), unique=True, nullable=True)
+    share_expires_at     = db.Column(db.DateTime, nullable=True)
+    share_password_hash  = db.Column(db.String(255), nullable=True)
+
     children = db.relationship(
         "RoomFolder",
         backref=db.backref("parent", remote_side=[id]),
@@ -156,6 +191,28 @@ class RoomFolder(db.Model):
     @property
     def file_count(self) -> int:
         return self.files.count()
+
+    @property
+    def share_url(self) -> str | None:
+        if not self.share_token:
+            return None
+        from flask import current_app
+        public = current_app.config.get("PUBLIC_URL")
+        if public:
+            return f"{public}/filevault/srf/{self.share_token}"
+        return url_for("share.shared_room_folder", token=self.share_token, _external=True)
+
+    @property
+    def is_share_active(self) -> bool:
+        if not self.share_token:
+            return False
+        if self.share_expires_at:
+            expires = self.share_expires_at
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires < datetime.now(timezone.utc):
+                return False
+        return True
 
 
 class RoomFile(db.Model):

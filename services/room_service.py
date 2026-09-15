@@ -1,5 +1,7 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from flask import current_app
+from werkzeug.security import generate_password_hash
 
 from models import db, FileRecord
 from models.room import Room, RoomMembership, RoomInviteCode, RoomFolder, RoomFile
@@ -257,6 +259,60 @@ class RoomService:
             return False, "Podaj nowa nazwe."
         folder.name = new_name[:255]
         db.session.commit()
+        return True, None
+
+    @staticmethod
+    def create_folder_share(room, actor, folder: RoomFolder, expires_hours: int, password: str = "") -> tuple[bool, str | None]:
+        membership = RoomService.get_membership(room, actor)
+        if not membership or not membership.can_manage_folders():
+            return False, "Nie masz uprawnien do udostepniania folderow w tym pokoju."
+        if folder.room_id != room.id:
+            return False, "Folder nie nalezy do tego pokoju."
+        folder.share_token = secrets.token_urlsafe(32)
+        folder.share_expires_at = None if expires_hours == 0 else datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+        folder.share_password_hash = generate_password_hash(password) if password else None
+        db.session.commit()
+        log_action("room_folder_share_created", detail=f"{room.name} / {folder.name}")
+        return True, None
+
+    @staticmethod
+    def revoke_folder_share(room, actor, folder: RoomFolder) -> tuple[bool, str | None]:
+        membership = RoomService.get_membership(room, actor)
+        if not membership or not membership.can_manage_folders():
+            return False, "Nie masz uprawnien do zarzadzania udostepnianiem w tym pokoju."
+        if folder.room_id != room.id:
+            return False, "Folder nie nalezy do tego pokoju."
+        folder.share_token = None
+        folder.share_expires_at = None
+        folder.share_password_hash = None
+        db.session.commit()
+        log_action("room_folder_share_revoked", detail=f"{room.name} / {folder.name}")
+        return True, None
+
+    # ── Udostepnianie calego pokoju (glowny folder / root) ──────────────────
+
+    @staticmethod
+    def create_room_share(room, actor, expires_hours: int, password: str = "") -> tuple[bool, str | None]:
+        membership = RoomService.get_membership(room, actor)
+        if not membership or not membership.can_manage_folders():
+            return False, "Nie masz uprawnien do udostepniania tego pokoju."
+        room.share_token = secrets.token_urlsafe(32)
+        room.share_expires_at = None if expires_hours == 0 else datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+        room.share_password_hash = generate_password_hash(password) if password else None
+        db.session.commit()
+        log_action("room_share_created", detail=room.name)
+        return True, None
+
+    @staticmethod
+    def revoke_room_share(room, actor) -> tuple[bool, str | None]:
+        membership = RoomService.get_membership(room, actor)
+        if not membership or not membership.can_manage_folders():
+            return False, "Nie masz uprawnien do zarzadzania udostepnianiem tego pokoju."
+        room.share_token = None
+        room.share_expires_at = None
+        room.share_password_hash = None
+        db.session.commit()
+        log_action("room_share_revoked", detail=room.name)
         return True, None
 
     @staticmethod
