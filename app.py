@@ -153,9 +153,23 @@ def create_app(config_class=Config) -> Flask:
         "share.preview_shared",
     }
 
+    # "files.preview_file" to podgląd PDF-a we WŁASNYM, zalogowanym dashboardzie
+    # FileVault (templates/dashboard.html: openPreview() -> <iframe src="...file/<id>/preview">).
+    # To ZAWSZE zagnieżdżona ramka na TEJ SAMEJ stronie/originie, niezależnie od
+    # tego, czy Koloseum jest w ogóle skonfigurowane (FRAME_ALLOWED_ORIGINS może
+    # być puste). Dlatego ten endpoint ma własną, prostszą regułę: zawsze wolno
+    # go osadzać w ramce z tego samego originu ('self'), i NIC więcej — inaczej
+    # dostawał domyślne X-Frame-Options: DENY, które blokowało go nawet wewnątrz
+    # własnej strony (DENY blokuje bezwarunkowo, także same-origin), przez co
+    # podgląd PDF-ów w dashboardzie przestał działać (img/video/audio działały,
+    # bo te tagi nie są objęte tym nagłówkiem — tylko iframe/frame/object/embed).
+    SELF_ONLY_EMBEDDABLE_ENDPOINTS = {"files.preview_file"}
+
     @app.after_request
     def _set_frame_headers(response):
-        if request.endpoint in EMBEDDABLE_ENDPOINTS and app.config["FRAME_ALLOWED_ORIGINS"]:
+        if request.endpoint in SELF_ONLY_EMBEDDABLE_ENDPOINTS:
+            response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
+        elif request.endpoint in EMBEDDABLE_ENDPOINTS and app.config["FRAME_ALLOWED_ORIGINS"]:
             allowed = " ".join(app.config["FRAME_ALLOWED_ORIGINS"])
             # CSP frame-ancestors > X-Frame-Options (wspierane przez wszystkie
             # nowoczesne przeglądarki) — dlatego dla tej trasy w ogóle nie
