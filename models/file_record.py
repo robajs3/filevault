@@ -83,3 +83,15 @@ class FileRecord(db.Model):
     @property
     def is_previewable(self) -> bool:
         return self.preview_type is not None
+
+    @property
+    def thumbnail_url(self) -> str | None:
+        """Publiczny adres miniaturki — używany przez panel "Dysk" w Koloseum
+        (templates/base.html: item.thumbnail_url), które renderuje <img>
+        wprost w przeglądarce studenta. Budujemy go tak samo jak share_url
+        (patrz share_url.py), bo JSON z /api/browse trafia do Koloseum przez
+        wewnętrzną sieć (FILEVAULT_INTERNAL_URL) — bez build_share_url()
+        zaszyłby się tu wewnętrzny host, nieosiągalny z przeglądarki."""
+        if not self.has_thumbnail:
+            return None
+        return build_share_url("files.thumbnail", file_id=self.id)

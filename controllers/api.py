@@ -104,6 +104,7 @@ def api_files(user):
         "share_url": f.share_url,
         "share_active": f.is_share_active,
         "has_thumbnail": f.has_thumbnail,
+        "thumbnail_url": f.thumbnail_url,
         "is_previewable": f.is_previewable,
         "created_at": f.created_at.isoformat(),
     } for f in files])
@@ -156,6 +157,8 @@ def api_browse(user):
             "folder_id": f.folder_id,
             "share_url": f.share_url,
             "share_active": f.is_share_active,
+            "has_thumbnail": f.has_thumbnail,
+            "thumbnail_url": f.thumbnail_url,
             "is_previewable": f.is_previewable,
             "created_at": f.created_at.isoformat(),
         } for f in recent_files],
