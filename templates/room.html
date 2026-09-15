@@ -28,6 +28,32 @@
     {% endif %}
   </div>
   <div class="header-actions">
+    {% if not current_folder and membership.can_manage_folders() %}
+      {% if room.share_token and room.is_share_active %}
+        <button class="btn btn-outline btn-sm" onclick="copyInviteCode('{{ room.share_url }}')" title="Kopiuj link">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
+            <circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+          </svg>
+          Pokoj udostepniony
+        </button>
+        <form method="POST" action="{{ url_for('rooms.unshare_room', room_id=room.id) }}" style="display:inline">
+          <button type="submit" class="btn btn-ghost btn-sm" title="Wylacz udostepnianie">Cofnij</button>
+        </form>
+      {% else %}
+        <button class="btn btn-outline btn-sm share-target-btn"
+                data-share-url="{{ url_for('rooms.share_room', room_id=room.id) }}"
+                data-share-name="{{ room.name }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
+            <circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+          </svg>
+          Udostepnij pokoj
+        </button>
+      {% endif %}
+    {% endif %}
     {% if membership.role == ROLE_OWNER %}
       <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)"
               onclick="document.getElementById('deleteRoomModal').showModal()">
@@ -109,6 +135,28 @@
       </a>
       {% if membership.can_manage_folders() %}
       <div class="room-folder-actions">
+        {% if sf.share_token and sf.is_share_active %}
+        <form method="POST" action="{{ url_for('rooms.unshare_room_folder', room_id=room.id, folder_id=sf.id) }}" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--accent)" title="Folder udostepniony — kliknij, aby cofnac">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
+              <circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+            </svg>
+          </button>
+        </form>
+        {% else %}
+        <button class="btn btn-sm btn-ghost share-target-btn"
+                data-share-url="{{ url_for('rooms.share_room_folder', room_id=room.id, folder_id=sf.id) }}"
+                data-share-name="{{ sf.name }}"
+                title="Udostepnij folder">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05 5.83"/>
+            <circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+          </svg>
+        </button>
+        {% endif %}
         <button class="btn btn-sm btn-ghost"
                 onclick="openRenameFolder({{ sf.id }}, '{{ sf.name | e }}')" title="Zmien nazwe">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -184,7 +232,7 @@
           </svg>
         </button>
         {% endif %}
-        <a href="{{ url_for('rooms.download_room_file', room_id=room.id, room_file_id=rf.id) }}"
+        <a href="{{ url_for('files.download_own', file_id=fr.id) }}"
            class="btn btn-sm btn-ghost" title="Pobierz">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -371,6 +419,36 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
         <button type="submit" class="btn btn-primary">Zmien</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="shareTargetModal" class="modal">
+  <div class="modal-header">
+    <h2 id="shareTargetTitle">Udostepnij</h2>
+    <button class="modal-close" onclick="this.closest('dialog').close()">×</button>
+  </div>
+  <div class="modal-content">
+    <form id="shareTargetForm" method="POST">
+      <div class="form-group">
+        <label>Wygasa po</label>
+        <select name="expires_hours">
+          <option value="1">1 godzinie</option>
+          <option value="6">6 godzinach</option>
+          <option value="24" selected>24 godzinach</option>
+          <option value="72">3 dniach</option>
+          <option value="168">7 dniach</option>
+          <option value="0">Nigdy</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Haslo (opcjonalnie)</label>
+        <input type="text" name="share_password" placeholder="Zostaw puste, aby nie wymagac hasla" maxlength="255">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Udostepnij</button>
       </div>
     </form>
   </div>
@@ -778,6 +856,22 @@ function openRenameFolder(folderId, currentName) {
   document.getElementById('renameFolderInput').value = currentName;
   document.getElementById('renameFolderModal').showModal();
 }
+
+function openShareTarget(actionUrl, name) {
+  document.getElementById('shareTargetForm').action = actionUrl;
+  document.getElementById('shareTargetTitle').textContent = 'Udostepnij: ' + name;
+  document.getElementById('shareTargetModal').showModal();
+}
+
+// Delegacja zdarzeń zamiast inline onclick — nazwy pokoi/folderów mogą
+// zawierać cudzysłowy, które psuły atrybut HTML przy użyciu tojson wewnątrz
+// atrybutu w podwójnych cudzysłowach.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.share-target-btn');
+  if (btn) {
+    openShareTarget(btn.dataset.shareUrl, btn.dataset.shareName);
+  }
+});
 
 function copyInviteCode(code) {
   navigator.clipboard.writeText(code)
