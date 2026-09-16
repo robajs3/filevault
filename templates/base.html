@@ -25,7 +25,29 @@
 
 </head>
 <body>
-  {% if session.user_id %}
+  {% if hide_nav %}
+  {# Strony udostępniania (shared_folder.html dla /sf, /sr, /srf) są bardzo
+     często oglądane WEWNĄTRZ iframe'a osadzonego w Koloseum, przez kogoś,
+     kto jest jednocześnie zalogowany do FileVaulta przez SSO — więc
+     poniższy pełny navbar dashboardu i tak by się pojawił. Problem: żaden
+     z tych linków (Pokoje, profil, Wyloguj, dashboard) nie jest na białej
+     liście EMBEDDABLE_ENDPOINTS w app.py, więc kliknięcie w iframe'ie
+     kończyło się zablokowaną, pustą ramką — czysty, nieużywalny szum.
+     Dlatego tu zamiast pełnego navbara jest tylko statyczny, nieklikalny
+     napis z marką — bez żadnej opcji przejścia gdzie indziej. #}
+  <nav class="navbar">
+    <span class="nav-brand" style="cursor:default;pointer-events:none">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      FileVault <sub class="brand-sub">by Robajs</sub>
+    </span>
+  </nav>
+  {% elif session.user_id %}
   <nav class="navbar">
     <a href="{{ url_for('files.dashboard') }}" class="nav-brand">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -80,7 +102,9 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <span class="text-muted" style="font-size:.8rem">© 2026 FileVault</span>
+      {% if not hide_nav %}
       <a href="{{ url_for('privacy') }}" class="footer-link">Polityka prywatności</a>
+      {% endif %}
     </div>
   </footer>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
