@@ -2,6 +2,8 @@ import secrets
 from functools import wraps
 from flask import Blueprint, jsonify, g, request, session
 from models import db, FileRecord, Folder, User
+from models.room import RoomMembership, RoomFile
+from models.share_url import build_share_url
 from services.file_service import FileService
 from services.folder_service import FolderService
 from .decorators import login_required
@@ -131,37 +133,57 @@ def api_folders(user):
     } for f in folders])
 
 
-# ---------- panel "Wybierz z FileVault" w Koloseum ----------
+def _file_json(f: FileRecord) -> dict:
+    return {
+        "id": f.id,
+        "name": f.original_name,
+        "extension": f.extension,
+        "size_human": f.size_human,
+        "folder_id": f.folder_id,
+        "share_url": f.share_url,
+        "share_active": f.is_share_active,
+        "has_thumbnail": f.has_thumbnail,
+        "thumbnail_url": f.thumbnail_url,
+        "is_previewable": f.is_previewable,
+        "created_at": f.created_at.isoformat(),
+    }
+
+
+def _folder_json(f: Folder) -> dict:
+    return {
+        "id": f.id,
+        "name": f.name,
+        "parent_id": f.parent_id,
+        "full_path": f.full_path,
+        "file_count": f.file_count,
+        "share_url": f.share_url,
+        "share_active": f.is_share_active,
+        "created_at": f.created_at.isoformat(),
+    }
+
+
+# ---------- panel "Dysk" / "Wybierz z FileVault" w Koloseum ----------
 @api_bp.route("/browse")
 @require_api_user
 def api_browse(user):
-    """Zwraca w jednym wywołaniu: ostatnio dodane pliki użytkownika oraz
-    jego foldery, które są aktualnie udostępnione (mają aktywny link).
+    """Zwraca w jednym wywołaniu: ostatnio dodane pliki użytkownika,
+    WSZYSTKIE jego pliki (nie tylko udostępnione — panel "Dysk" w Koloseum
+    ma pokazywać całe konto, a nie wyłącznie to, co już ma aktywny link),
+    oraz jego foldery (też wszystkie, z parent_id do budowy drzewa).
     Używane przez panel szybkiego wyboru w Koloseum, żeby nie trzeba było
     ręcznie kopiować i wklejać linków."""
-    recent_files = (
+    all_files_query = (
         FileRecord.query.filter_by(user_id=user.id)
         .order_by(FileRecord.created_at.desc())
-        .limit(15)
-        .all()
     )
+    recent_files = all_files_query.limit(15).all()
+    all_files = all_files_query.all()
     all_folders = Folder.query.filter_by(user_id=user.id).order_by(Folder.name).all()
     shared_folders = [f for f in all_folders if f.is_share_active]
 
     return jsonify({
-        "recent_files": [{
-            "id": f.id,
-            "name": f.original_name,
-            "extension": f.extension,
-            "size_human": f.size_human,
-            "folder_id": f.folder_id,
-            "share_url": f.share_url,
-            "share_active": f.is_share_active,
-            "has_thumbnail": f.has_thumbnail,
-            "thumbnail_url": f.thumbnail_url,
-            "is_previewable": f.is_previewable,
-            "created_at": f.created_at.isoformat(),
-        } for f in recent_files],
+        "recent_files": [_file_json(f) for f in recent_files],
+        "all_files": [_file_json(f) for f in all_files],
         "shared_folders": [{
             "id": f.id,
             "name": f.name,
@@ -170,15 +192,85 @@ def api_browse(user):
             "share_url": f.share_url,
             "created_at": f.created_at.isoformat(),
         } for f in shared_folders],
-        "all_folders": [{
-            "id": f.id,
-            "name": f.name,
-            "full_path": f.full_path,
-            "file_count": f.file_count,
-            "share_url": f.share_url,
-            "share_active": f.is_share_active,
-        } for f in all_folders],
+        "all_folders": [_folder_json(f) for f in all_folders],
     })
+
+
+# ---------- zawartość konkretnego folderu (drill-down w panelu "Dysk") ----------
+@api_bp.route("/folders/<int:folder_id>/files")
+@require_api_user
+def api_folder_files(user, folder_id):
+    """Zwraca WSZYSTKIE pliki i podfoldery leżące bezpośrednio w danym
+    folderze użytkownika — niezależnie od tego, czy mają aktywny link
+    udostępniania. Panel "Dysk" w Koloseum używa tego do przeglądania
+    zawartości folderu (klik na folder -> lista jego plików), a nie tylko
+    tworzenia linku do całego folderu naraz."""
+    folder = Folder.query.filter_by(id=folder_id, user_id=user.id).first()
+    if not folder:
+        return jsonify({"error": "Nie znaleziono folderu"}), 404
+
+    files = FileRecord.query.filter_by(user_id=user.id, folder_id=folder_id).order_by(FileRecord.created_at.desc()).all()
+    subfolders = Folder.query.filter_by(user_id=user.id, parent_id=folder_id).order_by(Folder.name).all()
+
+    breadcrumbs = []
+    node = folder
+    while node:
+        breadcrumbs.insert(0, {"id": node.id, "name": node.name})
+        node = db.session.get(Folder, node.parent_id) if node.parent_id else None
+
+    return jsonify({
+        "folder": _folder_json(folder),
+        "breadcrumbs": breadcrumbs,
+        "files": [_file_json(f) for f in files],
+        "subfolders": [_folder_json(f) for f in subfolders],
+    })
+
+
+# ---------- pliki udostępnione w pokojach, do których należy user ----------
+@api_bp.route("/rooms/shared-files")
+@require_api_user
+def api_rooms_shared_files(user):
+    """Zwraca pokoje (Room), do których user należy, razem ze wszystkimi
+    plikami w nich udostępnionymi (z całego drzewa podfolderów pokoju,
+    spłaszczone, z podaną ścieżką). Panel "Dysk" w Koloseum pokazuje to
+    jako zakładkę "Pokoje". Linki do plików prowadzą do zwykłych,
+    sesyjnych endpointów FileVault (nie trzeba tworzyć osobnego publicznego
+    share_token) — każdy członek pokoju i tak ma do nich dostęp, patrz
+    controllers/files.py:_get_file_with_access."""
+    memberships = RoomMembership.query.filter_by(user_id=user.id).all()
+    rooms_out = []
+    for m in memberships:
+        room = m.room
+        room_files = RoomFile.query.filter_by(room_id=room.id).order_by(RoomFile.uploaded_at.desc()).all()
+        files_out = []
+        for rf in room_files:
+            record = rf.file_record
+            if not record:
+                continue
+            folder_path = rf.room_folder.full_path if rf.folder_id and rf.room_folder else None
+            files_out.append({
+                "id": record.id,
+                "room_file_id": rf.id,
+                "name": record.original_name,
+                "extension": record.extension,
+                "size_human": record.size_human,
+                "folder_path": folder_path,
+                "uploaded_by": rf.uploaded_by.username if rf.uploaded_by else None,
+                "uploaded_at": rf.uploaded_at.isoformat() if rf.uploaded_at else None,
+                "is_previewable": record.is_previewable,
+                "has_thumbnail": record.has_thumbnail,
+                "thumbnail_url": build_share_url("files.thumbnail", file_id=record.id) if record.has_thumbnail else None,
+                "download_url": build_share_url("files.download_own", file_id=record.id),
+                "preview_url": build_share_url("files.preview_file", file_id=record.id) if record.is_previewable else None,
+            })
+        rooms_out.append({
+            "id": room.id,
+            "name": room.name,
+            "role": m.role,
+            "file_count": len(files_out),
+            "files": files_out,
+        })
+    return jsonify({"rooms": rooms_out})
 
 
 # ---------- "szybkie udostępnienie" — Koloseum woła to, gdy user wybierze
