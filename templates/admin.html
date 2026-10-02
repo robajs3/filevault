@@ -34,6 +34,25 @@
   </div>
 </div>
 
+<!-- ═══════ USTAWIENIA UPLOADU ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Limit rozmiaru pliku</h2>
+  </div>
+  <p class="text-muted" style="font-size:.85rem;margin:6px 0 12px">
+    Maksymalny rozmiar <strong>pojedynczego</strong> pliku, jaki można wgrać. Wartość domyślna dotyczy wszystkich
+    użytkowników; dla wybranych osób możesz ustawić inny limit w tabeli poniżej (kolumna „Maks. plik").
+  </p>
+  <form method="POST" action="{{ url_for('admin.set_default_max_upload') }}" class="inline-form"
+        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <label for="defaultMaxUpload" style="font-size:.85rem">Domyślny limit:</label>
+    <input type="number" id="defaultMaxUpload" name="max_upload_mb" value="{{ default_max_upload_mb }}"
+           min="1" max="102400" step="1" required class="input-sm" style="width:110px">
+    <span class="text-muted" style="font-size:.85rem">MB</span>
+    <button type="submit" class="btn btn-sm btn-primary">Zapisz</button>
+  </form>
+</div>
+
 <!-- ═══════ UŻYTKOWNICY ═══════ -->
 <div class="section">
   <div class="section-header">
@@ -57,6 +76,7 @@
           <th>Rola</th>
           <th>Status</th>
           <th>Miejsce</th>
+          <th>Maks. plik</th>
           <th>Data rejestracji</th>
           <th>Akcje</th>
         </tr>
@@ -81,6 +101,20 @@
           <td class="text-muted" style="font-size:.82rem">
             {{ u.used_storage_mb }} / {{ u.storage_limit_mb }} MB
             <div class="mini-bar"><div style="width:{{ [u.used_storage_mb / u.storage_limit_mb * 100, 100]|min }}%"></div></div>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.set_user_max_upload', user_id=u.id) }}" class="inline-form"
+                  style="display:flex;gap:4px;align-items:center">
+              <input type="number" name="max_upload_mb" value="{{ u.max_upload_mb if u.max_upload_mb else '' }}"
+                     placeholder="{{ default_max_upload_mb }}" min="1" max="102400" class="input-sm" style="width:80px"
+                     title="Maks. rozmiar pliku w MB — puste pole = limit domyślny ({{ default_max_upload_mb }} MB)">
+              <span class="text-muted" style="font-size:.75rem">MB</span>
+              <button type="submit" class="btn btn-sm btn-ghost" title="Zapisz limit pliku">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+            </form>
           </td>
           <td class="text-muted" style="font-size:.82rem">{{ u.created_at.strftime('%d.%m.%Y') }}</td>
           <td>

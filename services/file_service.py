@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 
 from models import FileRecord, db
 from .audit_service import log_action
+from .settings_service import effective_max_upload_bytes, effective_max_upload_mb
 
 
 def _allowed_file(filename: str) -> bool:
@@ -56,6 +57,13 @@ class FileService:
         path = os.path.join(upload_folder, stored_name)
         file.save(path)
         size = os.path.getsize(path)
+
+        if size > effective_max_upload_bytes(user):
+            os.remove(path)
+            return None, (
+                f"Plik „{original_name}” jest za duży. "
+                f"Maksymalny rozmiar to {effective_max_upload_mb(user)} MB."
+            )
 
         if user.used_storage_mb + size / (1024 * 1024) > user.storage_limit_mb:
             os.remove(path)

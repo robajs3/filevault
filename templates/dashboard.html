@@ -305,7 +305,8 @@
     <button class="modal-close" id="uploadModalClose" onclick="this.closest('dialog').close()">×</button>
   </div>
   <div class="modal-content">
-    <form id="uploadForm" enctype="multipart/form-data" data-upload-url="{{ url_for('files.upload') }}">
+    <form id="uploadForm" enctype="multipart/form-data" data-upload-url="{{ url_for('files.upload') }}"
+          data-max-upload-bytes="{{ max_upload_bytes }}">
       {% if current_folder %}<input type="hidden" name="folder_id" value="{{ current_folder.id }}">{% endif %}
       <div class="drop-zone" id="dropZone">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -313,6 +314,7 @@
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
         <p>Przeciągnij pliki tutaj lub kliknij</p>
+        <p class="text-muted" style="font-size:.75rem">Maks. rozmiar pliku: {{ (max_upload_bytes / 1048576)|round|int }} MB</p>
         <input type="file" name="file" id="fileInput" multiple hidden>
         <button type="button" class="btn btn-outline" onclick="document.getElementById('fileInput').click()">Wybierz pliki</button>
         <div id="fileList" class="file-list-preview"></div>
@@ -333,65 +335,6 @@
     </form>
   </div>
 </dialog>
-
-<!-- Nakładka z kółkiem postępu -->
-<div id="uploadOverlay" style="display:none">
-  <div id="uploadProgressBox">
-    <svg id="uploadCircleSvg" viewBox="0 0 120 120" width="120" height="120">
-      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
-      <circle id="uploadProgressCircle" cx="60" cy="60" r="52" fill="none"
-              stroke="var(--accent)" stroke-width="10"
-              stroke-linecap="round"
-              stroke-dasharray="326.7"
-              stroke-dashoffset="326.7"
-              transform="rotate(-90 60 60)"/>
-    </svg>
-    <div id="uploadPercentText">0%</div>
-    <div id="uploadFileName"></div>
-  </div>
-</div>
-
-<style>
-#uploadOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
-}
-#uploadProgressBox {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-#uploadCircleSvg {
-  filter: drop-shadow(0 0 18px rgba(99,102,241,.45));
-}
-#uploadProgressCircle {
-  transition: stroke-dashoffset .15s ease;
-}
-#uploadPercentText {
-  position: absolute;
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #fff;
-  /* centered inside svg */
-  margin-top: -146px;
-}
-#uploadFileName {
-  color: rgba(255,255,255,.7);
-  font-size: .85rem;
-  max-width: 260px;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-</style>
 
 <!-- Nowy folder -->
 <dialog id="newFolderModal" class="modal">
@@ -1356,11 +1299,16 @@ if (dropZone) {
 
 function updateFileList(files) {
   const list = document.getElementById('fileList');
+  const max  = Number(document.getElementById('uploadForm').dataset.maxUploadBytes) || 0;
   list.innerHTML = '';
   for (const f of files) {
     const d = document.createElement('div');
     d.className = 'file-preview-item';
     d.textContent = `${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`;
+    if (max && f.size > max) {
+      d.textContent += ' — za duży, zostanie pominięty';
+      d.style.color = 'var(--danger)';
+    }
     list.appendChild(d);
   }
 }

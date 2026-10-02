@@ -15,6 +15,8 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
     storage_limit_mb = db.Column(db.Integer, default=2048)
+    # Maks. rozmiar POJEDYNCZEGO pliku (MB). NULL = użyj limitu domyślnego z panelu admina.
+    max_upload_mb = db.Column(db.Integer, nullable=True)
 
     files = db.relationship(
         "FileRecord",

@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, g, jsonify
 from models import FileRecord, Folder, db
 from models.room import RoomFile, RoomMembership
 from services import FileService
@@ -48,7 +48,11 @@ def dashboard():
 @files_bp.route("/upload", methods=["POST"])
 @login_required
 def upload():
+    is_xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     if "file" not in request.files:
+        if is_xhr:
+            return jsonify(ok=False, error="Brak pliku."), 400
         flash("Brak pliku.", "danger")
         return redirect(url_for("files.dashboard"))
 
@@ -58,14 +62,23 @@ def upload():
         target_folder = Folder.query.filter_by(id=int(folder_id), user_id=g.user.id).first()
 
     uploaded = 0
+    errors = []
     for f in request.files.getlist("file"):
         record, error = FileService.save_upload(f, g.user, target_folder.id if target_folder else None)
         if error:
-            flash(error, "warning" if "typ" in error else "danger")
+            errors.append(error)
+            if not is_xhr:
+                flash(error, "warning" if "typ" in error else "danger")
             if "limit" in error:
                 break
         else:
             uploaded += 1
+
+    if is_xhr:
+        if uploaded:
+            return jsonify(ok=True, uploaded=uploaded, errors=errors)
+        status = 413 if any("za duży" in e for e in errors) else 400
+        return jsonify(ok=False, error="; ".join(errors) or "Nie udało się wgrać pliku."), status
 
     if uploaded:
         flash(f"Przesłano {uploaded} plik(ów).", "success")

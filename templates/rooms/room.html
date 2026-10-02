@@ -482,7 +482,8 @@
     <div id="addTab-upload">
       <form id="roomUploadForm"
             enctype="multipart/form-data"
-            data-upload-url="{{ url_for('rooms.upload_to_room', room_id=room.id) }}">
+            data-upload-url="{{ url_for('rooms.upload_to_room', room_id=room.id) }}"
+            data-max-upload-bytes="{{ max_upload_bytes }}">
         <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
         <div class="drop-zone" id="roomDropZone">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -532,23 +533,6 @@
     </div>
   </div>
 </dialog>
-
-<!-- Nakładka z kółkiem postępu (pokój) -->
-<div id="roomUploadOverlay" style="display:none">
-  <div id="roomUploadProgressBox">
-    <svg viewBox="0 0 120 120" width="120" height="120">
-      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
-      <circle id="roomProgressCircle" cx="60" cy="60" r="52" fill="none"
-              stroke="var(--accent)" stroke-width="10"
-              stroke-linecap="round"
-              stroke-dasharray="326.7"
-              stroke-dashoffset="326.7"
-              transform="rotate(-90 60 60)"/>
-    </svg>
-    <div id="roomPercentText">0%</div>
-    <div id="roomFileName"></div>
-  </div>
-</div>
 
 {% if membership.can_generate_invite() %}
 <dialog id="newInviteModal" class="modal">
@@ -748,27 +732,6 @@
 .drop-zone p { margin: 0; font-size: .85rem; color: var(--text-muted); }
 .file-list-preview { width: 100%; }
 .fp-item { font-size: .8rem; color: var(--text-muted); padding: 3px 0; border-top: 1px solid var(--border); }
-
-/* Nakładka postępu (pokój) */
-#roomUploadOverlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.65);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; backdrop-filter: blur(4px);
-}
-#roomUploadProgressBox {
-  display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative;
-}
-#roomProgressCircle { transition: stroke-dashoffset .15s ease; }
-#roomPercentText {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  font-size: 1.6rem; font-weight: 700; color: #fff;
-  filter: drop-shadow(0 0 18px rgba(99,102,241,.45));
-}
-#roomFileName {
-  color: rgba(255,255,255,.7); font-size: .85rem;
-  max-width: 260px; text-align: center; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
-}
 
 /* ── Podgląd (preview) ── */
 .preview-modal { max-width: min(92vw, 900px); width: 100%; }
@@ -1121,72 +1084,18 @@ function startRoomUpload() {
     return;
   }
 
-  const files     = Array.from(fileInput.files);
-  const totalSize = files.reduce((s, f) => s + f.size, 0);
-  let loadedTotal  = 0;
-  let currentIndex = 0;
-
+  const files = Array.from(fileInput.files);
   const folderField = form.querySelector('[name="folder_id"]');
-  const folderId    = folderField ? folderField.value : '';
-
-  const overlay = document.getElementById('roomUploadOverlay');
-  const circle  = document.getElementById('roomProgressCircle');
-  const pctText = document.getElementById('roomPercentText');
-  const nameEl  = document.getElementById('roomFileName');
-  const CIRC    = 326.7;
-
-  function setProgress(pct) {
-    circle.style.strokeDashoffset = CIRC * (1 - pct / 100);
-    pctText.textContent = Math.round(pct) + '%';
-  }
+  const folderId = folderField ? folderField.value : '';
 
   document.getElementById('addFileModal').close();
-  overlay.style.display = 'flex';
-  setProgress(0);
+  fileInput.value = '';
 
-  function uploadNext() {
-    if (currentIndex >= files.length) {
-      overlay.style.display = 'none';
-      window.location.reload();
-      return;
-    }
-
-    const file = files[currentIndex];
-    nameEl.textContent = file.name;
-
-    const fd = new FormData();
-    fd.append('file', file);
-    if (folderId) fd.append('folder_id', folderId);
-
-    const xhr        = new XMLHttpRequest();
-    const prevLoaded = loadedTotal;
-
-    xhr.upload.addEventListener('progress', function(e) {
-      if (!e.lengthComputable) return;
-      const pct = ((prevLoaded + e.loaded) / totalSize) * 100;
-      setProgress(Math.min(pct, 99));
-    });
-
-    xhr.addEventListener('load', function() {
-      loadedTotal += file.size;
-      currentIndex++;
-      setProgress((loadedTotal / totalSize) * 100);
-      uploadNext();
-    });
-
-    xhr.addEventListener('error', function() {
-      overlay.style.display = 'none';
-      showToast('Błąd podczas wgrywania: ' + file.name);
-      currentIndex++;
-      uploadNext();
-    });
-
-    xhr.open('POST', form.dataset.uploadUrl);
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    xhr.send(fd);
-  }
-
-  uploadNext();
+  FvUpload.enqueue(files, {
+    url: form.dataset.uploadUrl,
+    fields: { folder_id: folderId },
+    maxBytes: form.dataset.maxUploadBytes,
+  });
 }
 </script>
 {% endblock %}

@@ -92,15 +92,59 @@ def create_app(config_class=Config) -> Flask:
         return render_template("privacy.html", now=date.today().strftime("%d.%m.%Y"))
 
     # Error handlers
+    def _wants_json() -> bool:
+        return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    def _session_user():
+        uid = session.get("user_id")
+        return db.session.get(User, uid) if uid else None
+
     @app.errorhandler(413)
     def too_large(e):
-        from flask import flash, redirect, url_for
-        flash(
+        from flask import flash, jsonify, url_for
+        from services.settings_service import effective_max_upload_mb
+        msg = (
             f"Plik jest za duży. Maksymalny rozmiar to "
-            f"{app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)} MB.",
-            "danger",
+            f"{effective_max_upload_mb(_session_user())} MB."
         )
+        if _wants_json():
+            return jsonify(ok=False, error=msg), 413
+        flash(msg, "danger")
         return redirect(url_for("files.dashboard"))
+
+    # ── Dynamiczny limit rozmiaru pliku (ustawiany w panelu admina) ──────────
+    # Limit jest per plik: globalny domyślny (500 MB, edytowalny) albo override
+    # konkretnego użytkownika. Klient wysyła jeden plik na żądanie, więc tu odrzucamy
+    # za duże żądanie od razu po nagłówku Content-Length — zanim zaczniemy je odbierać.
+    # Dokładne sprawdzenie rozmiaru zapisanego pliku robi FileService.save_upload
+    # (obejmuje też logowanie ciasteczkiem "remember me", gdzie sesji jeszcze nie ma).
+    UPLOAD_ENDPOINTS = {"files.upload", "rooms.upload_to_room"}
+    MULTIPART_OVERHEAD = 1024 * 1024  # nagłówki/boundary multipart + pola formularza
+
+    @app.before_request
+    def _enforce_upload_limit():
+        if request.method != "POST" or request.endpoint not in UPLOAD_ENDPOINTS:
+            return None
+        user = _session_user()
+        if user is None:
+            return None
+        from services.settings_service import effective_max_upload_bytes, effective_max_upload_mb
+        limit = effective_max_upload_bytes(user)
+        if request.content_length and request.content_length > limit + MULTIPART_OVERHEAD:
+            from flask import jsonify, flash, url_for
+            msg = f"Plik jest za duży. Maksymalny rozmiar to {effective_max_upload_mb(user)} MB."
+            if _wants_json():
+                return jsonify(ok=False, error=msg), 413
+            flash(msg, "danger")
+            return redirect(url_for("files.dashboard"))
+        return None
+
+    @app.context_processor
+    def _inject_upload_limit():
+        from flask import g
+        from services.settings_service import effective_max_upload_bytes
+        user = getattr(g, "user", None)
+        return {"max_upload_bytes": effective_max_upload_bytes(user)}
 
     @app.errorhandler(429)
     def ratelimit_handler(e):

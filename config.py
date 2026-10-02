@@ -25,7 +25,14 @@ class Config:
         ),
     )
 
-    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
+    # Domyślny limit rozmiaru pliku (MB) — używany, dopóki admin nie ustawi własnej
+    # wartości w panelu admina (tabela `settings`). Zmienna MAX_UPLOAD_MB działa jak dotąd.
+    DEFAULT_MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "500"))
+
+    # Twardy sufit na wielkość całego żądania (ochrona przed nadużyciem). Faktyczny limit
+    # pliku jest dynamiczny (panel admina) i sprawdzany w app.py / FileService.save_upload.
+    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_HARD_CAP_MB", "10240")) * 1024 * 1024
+
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

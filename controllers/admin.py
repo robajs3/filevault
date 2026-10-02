@@ -1,6 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from models import User, FileRecord, AuditLog, AppLink, db
 from .decorators import admin_required
+from services.settings_service import (
+    get_default_max_upload_mb, set_default_max_upload_mb,
+    MIN_UPLOAD_MB, MAX_UPLOAD_MB_CEILING,
+)
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -16,6 +20,7 @@ def admin_panel():
     return render_template("admin.html", users=users, logs=logs,
                            total_files=total_files, total_size=total_size,
                            apps=apps, app_icons=AppLink.ICONS, app_colors=AppLink.COLORS,
+                           default_max_upload_mb=get_default_max_upload_mb(),
                            user=g.user)
 
 
@@ -41,6 +46,52 @@ def set_storage(user_id):
     u.storage_limit_mb = int(limit)
     db.session.commit()
     flash(f"Limit miejsca dla {u.username} ustawiony na {limit} MB.", "success")
+    return redirect(url_for("admin.admin_panel"))
+
+
+# ═══════════════ Limit rozmiaru pojedynczego pliku ═══════════════
+
+def _parse_upload_mb(raw: str):
+    """Zwraca int w dozwolonym zakresie albo None, gdy wartość jest niepoprawna."""
+    raw = (raw or "").strip()
+    if not raw.isdigit():
+        return None
+    mb = int(raw)
+    return mb if MIN_UPLOAD_MB <= mb <= MAX_UPLOAD_MB_CEILING else None
+
+
+@admin_bp.route("/settings/max-upload", methods=["POST"])
+@admin_required
+def set_default_max_upload():
+    mb = _parse_upload_mb(request.form.get("max_upload_mb"))
+    if mb is None:
+        flash(f"Podaj liczbę całkowitą MB od {MIN_UPLOAD_MB} do {MAX_UPLOAD_MB_CEILING}.", "danger")
+    else:
+        set_default_max_upload_mb(mb)
+        flash(f"Domyślny maksymalny rozmiar pliku ustawiony na {mb} MB.", "success")
+    return redirect(url_for("admin.admin_panel"))
+
+
+@admin_bp.route("/user/<int:user_id>/max-upload", methods=["POST"])
+@admin_required
+def set_user_max_upload(user_id):
+    u = db.session.get(User, user_id)
+    if not u:
+        abort(404)
+    raw = request.form.get("max_upload_mb", "").strip()
+    if raw == "":
+        u.max_upload_mb = None
+        db.session.commit()
+        flash(f"{u.username}: używa domyślnego limitu pliku ({get_default_max_upload_mb()} MB).", "info")
+    else:
+        mb = _parse_upload_mb(raw)
+        if mb is None:
+            flash(f"Podaj liczbę całkowitą MB od {MIN_UPLOAD_MB} do {MAX_UPLOAD_MB_CEILING} "
+                  f"(puste pole = limit domyślny).", "danger")
+        else:
+            u.max_upload_mb = mb
+            db.session.commit()
+            flash(f"Maksymalny rozmiar pliku dla {u.username} ustawiony na {mb} MB.", "success")
     return redirect(url_for("admin.admin_panel"))
 
 
